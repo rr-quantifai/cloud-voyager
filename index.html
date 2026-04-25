@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloud Voyager I Sales intelligence tool</title>
+    <style>
+      /* Mobile gate — CSS only, no JS */
+      @media (max-width: 1023px) {
+        #root          { display: none !important; }
+        #mobile-gate   { display: flex !important; }
+      }
+
+      /* Loading screen */
+      #loading-screen {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc; /* slate-50 */
+        z-index: 9999;
+      }
+
+      .loading-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #94a3b8; /* slate-400 */
+        margin: 0 4px;
+        animation: blink 1.2s infinite both;
+      }
+      .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+      .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+      @keyframes blink {
+        0%, 80%, 100% { opacity: 0.15; transform: scale(0.9); }
+        40%            { opacity: 1;    transform: scale(1);   }
+      }
+
+      /* Mobile gate styling */
+      #mobile-gate {
+        display: none;
+        position: fixed;
+        inset: 0;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        font-family: sans-serif;
+        color: #475569; /* slate-600 */
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Mobile gate -->
+    <div id="mobile-gate">Accessible only on desktop</div>
+
+    <!-- Loading screen -->
+    <div id="loading-screen">
+      <div class="loading-dot"></div>
+      <div class="loading-dot"></div>
+      <div class="loading-dot"></div>
+    </div>
+
+    <!-- App root -->
+    <div id="root"></div>
+
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
