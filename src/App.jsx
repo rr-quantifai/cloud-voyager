@@ -451,9 +451,8 @@ function CustomerListPage() {
 
       {/* Top bar */}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold text-slate-700 shrink-0">Customers</h1>
 
-        <div className="flex items-center gap-2 flex-1 justify-end">
+        <div className="flex items-center gap-2">
           {/* Anthropic key */}
           <input
             type="password"
@@ -489,30 +488,28 @@ function CustomerListPage() {
             <button
               onClick={handleSaveKeys}
               disabled={!anthropicKey.trim() || !tavilyKey.trim()}
-              className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
+              className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
             >
               Save
             </button>
           ) : (
             <button
               onClick={handleClearKeys}
-              className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors`}
+              className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors`}
             >
               Clear
             </button>
           )}
-
-          {/* Divider */}
-          <div className="w-px h-5 bg-slate-200 shrink-0" />
-
-          {/* New Analysis */}
-          <button
-            onClick={() => setIsNewAnalysisOpen(true)}
-            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors shrink-0`}
-          >
-            New Analysis
-          </button>
         </div>
+
+        {/* New Analysis */}
+        <button
+          onClick={() => setIsNewAnalysisOpen(true)}
+          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors shrink-0`}
+        >
+          New Analysis
+        </button>
+
       </div>
 
       {/* Search */}
@@ -1312,7 +1309,7 @@ function NavBar() {
 
   return (
     <header className="bg-white border-b border-slate-200">
-      <div className="flex items-center justify-between px-6 h-12">
+      <div className="flex items-center justify-between px-4 h-16">
 
         {/* Logo + wordmark */}
         <div className="flex items-center gap-2.5 select-none">
