@@ -469,6 +469,9 @@ function CustomerListPage() {
           New Analysis
         </button>
 
+        {/* Separator */}
+        <div className="w-px h-5 bg-slate-200 shrink-0" />
+
         {/* Anthropic key */}
         <input
           type="password"
@@ -499,23 +502,22 @@ function CustomerListPage() {
           ].join(' ')}
         />
 
-        {/* Save / Clear */}
-        {!keysSaved ? (
-          <button
-            onClick={handleSaveKeys}
-            disabled={!anthropicKey.trim() || !tavilyKey.trim()}
-            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
-          >
-            Save
-          </button>
-        ) : (
-          <button
-            onClick={handleClearKeys}
-            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors`}
-          >
-            Clear
-          </button>
-        )}
+        {/* Save */}
+        <button
+          onClick={handleSaveKeys}
+          disabled={keysSaved || !anthropicKey.trim() || !tavilyKey.trim()}
+          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
+        >
+          Save
+        </button>
+
+        {/* Clear */}
+        <button
+          onClick={handleClearKeys}
+          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors`}
+        >
+          Clear
+        </button>
 
       </div>
 
@@ -1310,18 +1312,15 @@ function NavBar() {
       <div className="flex items-center justify-between px-4 h-16">
 
         {/* Logo + wordmark */}
-        <div className="flex items-center gap-2.5 select-none">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="8" fill="#EFF6FF"/>
-            <path
-              d="M23 14.5c0-3.038-2.462-5.5-5.5-5.5a5.496 5.496 0 0 0-4.702 2.655A3.984 3.984 0 0 0 11 11c-2.21 0-4 1.79-4 4 0 .207.016.41.046.61C5.818 16.066 5 17.432 5 19c0 2.21 1.79 4 4 4h14a4 4 0 0 0 0-8c-.092 0-.183.004-.274.01A5.48 5.48 0 0 0 23 14.5z"
-              fill="#3B82F6"
-              fillOpacity="0.85"
-            />
-          </svg>
+        <div className="flex items-center gap-3 select-none">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center flex-shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>
+            </svg>
+          </div>
           <div>
-            <p className="text-base font-semibold text-slate-700 leading-tight">Cloud Voyager</p>
-            <p className="text-sm text-slate-400 leading-tight">Actionable sales insights</p>
+            <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">Cloud Voyager</h1>
+            <p className="text-xs text-slate-400 leading-tight">Actionable sales insights</p>
           </div>
         </div>
 
