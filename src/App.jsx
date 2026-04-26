@@ -165,17 +165,16 @@ function NewAnalysisModal({ onClose, onCreated }) {
       <div className="bg-white rounded-lg border border-slate-200 w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-700">New Analysis</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Start by creating a customer</p>
+        <div className="flex items-center gap-3 p-4 border-b border-slate-200 shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center flex-shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
           </div>
-          <button
-            onClick={onClose}
-            className={`${BUTTON_H} w-9 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors`}
-          >
-            ✕
-          </button>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">New Analysis</h2>
+            <p className="text-xs text-slate-400 leading-tight">Start by creating a customer</p>
+          </div>
         </div>
 
         {/* Scrollable body */}
@@ -457,7 +456,7 @@ function CustomerListPage() {
           type="text"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search by ID or name..."
+          placeholder="Search by ID or name"
           className="flex-1 h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
         />
 
@@ -474,7 +473,7 @@ function CustomerListPage() {
 
         {/* Anthropic key */}
         <input
-          type="password"
+          type="text"
           value={anthropicKey}
           readOnly={keysSaved}
           onChange={e => setAnthropicKey(e.target.value)}
@@ -489,7 +488,7 @@ function CustomerListPage() {
 
         {/* Tavily key */}
         <input
-          type="password"
+          type="text"
           value={tavilyKey}
           readOnly={keysSaved}
           onChange={e => setTavilyKey(e.target.value)}
