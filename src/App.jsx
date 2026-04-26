@@ -3,7 +3,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { BrowserRouter, Routes, Route, Link, Outlet, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Outlet, Navigate, useParams, useNavigate } from 'react-router-dom'
 import {
   useReactTable,
   getCoreRowModel,
@@ -20,7 +20,6 @@ import {
   computeCategoryStages,
   PAGE_SIZE,
   BUTTON_H,
-  MODEL_OPTIONS,
 } from './constants.js'
 
 import {
@@ -37,7 +36,6 @@ import {
 } from './db.js'
 
 // ─── Zustand Store ────────────────────────────────────────────────────────────
-// Exact key names as per Global State Schema
 
 const useStore = create((set) => ({
   searchQuery:       '',
@@ -48,170 +46,6 @@ const useStore = create((set) => ({
   setCurrentPage:       (currentPage)       => set({ currentPage }),
   setIsNewAnalysisOpen: (isNewAnalysisOpen) => set({ isNewAnalysisOpen }),
 }))
-
-// ============================================================
-// SECTION 2 — SETTINGS PAGE
-// ============================================================
-
-function SettingsPage() {
-  const [settings, setSettings] = useState({ anthropic: '', tavily: '', model: 'sonnet' })
-  const [saved, setSaved]       = useState(false)
-  const [confirmClear, setConfirmClear] = useState(false)
-  const [clearing, setClearing] = useState(false)
-
-  useEffect(() => {
-    getSettings().then(s => setSettings(s))
-  }, [])
-
-  function handleChange(field, value) {
-    setSaved(false)
-    setSettings(prev => ({ ...prev, [field]: value }))
-  }
-
-  async function handleSave() {
-    await saveSettings(settings)
-    setSaved(true)
-  }
-
-  async function handleClearConfirmed() {
-    setClearing(true)
-    await clearAllData()
-    window.location.reload()
-  }
-
-  const opusOption   = MODEL_OPTIONS.find(m => m.value === 'opus')
-  const sonnetOption = MODEL_OPTIONS.find(m => m.value === 'sonnet')
-
-  return (
-    <div className="max-w-xl mx-auto py-10 px-4 space-y-8">
-
-      {/* Page heading */}
-      <h1 className="text-lg font-semibold text-slate-700">Settings</h1>
-
-      {/* API Keys card */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-4">
-        <h2 className="text-sm font-semibold text-slate-700">API Keys</h2>
-
-        {/* Anthropic key */}
-        <div className="space-y-1">
-          <label className="block text-sm text-slate-700">Anthropic API key</label>
-          <input
-            type="password"
-            value={settings.anthropic}
-            onChange={e => handleChange('anthropic', e.target.value)}
-            placeholder="sk-ant-…"
-            className="w-full h-9 px-3 rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
-          />
-        </div>
-
-        {/* Tavily key */}
-        <div className="space-y-1">
-          <label className="block text-sm text-slate-700">Tavily API key</label>
-          <input
-            type="password"
-            value={settings.tavily}
-            onChange={e => handleChange('tavily', e.target.value)}
-            placeholder="tvly-…"
-            className="w-full h-9 px-3 rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
-          />
-        </div>
-      </div>
-
-      {/* Model selector card */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">Model</h2>
-
-        {/* Sonnet option */}
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="radio"
-            name="model"
-            value="sonnet"
-            checked={settings.model === 'sonnet'}
-            onChange={() => handleChange('model', 'sonnet')}
-            className="mt-0.5 accent-slate-500"
-          />
-          <span className="space-y-0.5">
-            <span className="flex items-center gap-2">
-              <span className="text-sm text-slate-700">{sonnetOption.label}</span>
-              <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
-                {sonnetOption.tag}
-              </span>
-            </span>
-          </span>
-        </label>
-
-        {/* Opus option */}
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="radio"
-            name="model"
-            value="opus"
-            checked={settings.model === 'opus'}
-            onChange={() => handleChange('model', 'opus')}
-            className="mt-0.5 accent-slate-500"
-          />
-          <span className="space-y-0.5">
-            <span className="text-sm text-slate-700">{opusOption.label}</span>
-            <p className="text-xs text-slate-400">{opusOption.note}</p>
-          </span>
-        </label>
-      </div>
-
-      {/* Save button row */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors`}
-        >
-          Save settings
-        </button>
-        {saved && (
-          <span className="text-sm text-slate-400">Saved</span>
-        )}
-      </div>
-
-      {/* Danger zone card */}
-      <div className="bg-white border border-rose-200 rounded-lg p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">Danger zone</h2>
-        <p className="text-sm text-slate-400">
-          Permanently deletes all customers, analyses, and settings from this browser
-        </p>
-
-        {!confirmClear ? (
-          <button
-            onClick={() => setConfirmClear(true)}
-            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors`}
-          >
-            Clear all data
-          </button>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-sm text-slate-700 font-medium">
-              This cannot be undone — are you sure?
-            </p>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleClearConfirmed}
-                disabled={clearing}
-                className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 transition-colors`}
-              >
-                {clearing ? 'Clearing…' : 'Yes, delete everything'}
-              </button>
-              <button
-                onClick={() => setConfirmClear(false)}
-                className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors`}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-    </div>
-  )
-}
 
 // ============================================================
 // SECTION 3 — CUSTOMER LIST PAGE
@@ -275,16 +109,13 @@ function NewAnalysisModal({ onClose, onCreated }) {
   const [allCustomers,     setAllCustomers]     = useState([])
   const [submitting,       setSubmitting]       = useState(false)
 
-  // Load all customers once for validation
   useEffect(() => { getAllCustomers().then(setAllCustomers) }, [])
 
-  // Fuse instance for name match
   const nameFuse = useMemo(
     () => new Fuse(allCustomers, { keys: ['name'], threshold: 0.3 }),
     [allCustomers]
   )
 
-  // Live ID validation — exact match, case-insensitive
   useEffect(() => {
     const q = customerId.trim()
     if (!q) { setIdError(null); return }
@@ -292,17 +123,12 @@ function NewAnalysisModal({ onClose, onCreated }) {
     setIdError(exists ? 'Customer with the same ID already exists' : null)
   }, [customerId, allCustomers])
 
-  // Live name validation — fuzzy match
   useEffect(() => {
     setNameDismissed(false)
     const q = customerName.trim()
     if (!q) { setNameWarning(null); return }
     const results = nameFuse.search(q)
-    if (results.length > 0) {
-      setNameWarning({ matchedId: results[0].item.id })
-    } else {
-      setNameWarning(null)
-    }
+    setNameWarning(results.length > 0 ? { matchedId: results[0].item.id } : null)
   }, [customerName, nameFuse])
 
   function toggleProduct(product) {
@@ -316,9 +142,9 @@ function NewAnalysisModal({ onClose, onCreated }) {
     setSubmitting(true)
     try {
       await createCustomer({
-        id:              customerId.trim(),
-        name:            customerName.trim(),
-        ownedProducts:   selectedProducts,
+        id:            customerId.trim(),
+        name:          customerName.trim(),
+        ownedProducts: selectedProducts,
       })
       onCreated?.()
       onClose()
@@ -340,7 +166,10 @@ function NewAnalysisModal({ onClose, onCreated }) {
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-sm font-semibold text-slate-700">New analysis</h2>
+          <div>
+            <h2 className="text-sm font-semibold text-slate-700">New Analysis</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Start by creating a customer</p>
+          </div>
           <button
             onClick={onClose}
             className={`${BUTTON_H} w-9 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors`}
@@ -352,14 +181,14 @@ function NewAnalysisModal({ onClose, onCreated }) {
         {/* Scrollable body */}
         <div className="overflow-y-auto p-4 space-y-4 flex-1">
 
-          {/* Customer ID */}
+          {/* ID */}
           <div className="space-y-1">
-            <label className="block text-sm text-slate-700">Customer ID</label>
+            <label className="block text-sm text-slate-700">ID</label>
             <input
               type="text"
               value={customerId}
               onChange={e => setCustomerId(e.target.value)}
-              placeholder="e.g. CUST-001"
+              placeholder="As per Cloud Quarks"
               className={[
                 'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50',
                 'focus:outline-none focus:ring-1',
@@ -373,14 +202,14 @@ function NewAnalysisModal({ onClose, onCreated }) {
             )}
           </div>
 
-          {/* Customer Name */}
+          {/* Name */}
           <div className="space-y-1">
-            <label className="block text-sm text-slate-700">Customer Name</label>
+            <label className="block text-sm text-slate-700">Name</label>
             <input
               type="text"
               value={customerName}
               onChange={e => setCustomerName(e.target.value)}
-              placeholder="e.g. Acme Corporation"
+              placeholder="As per Cloud Quarks"
               className="w-full h-9 px-3 rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
             />
             {nameWarning && !nameDismissed && (
@@ -398,9 +227,17 @@ function NewAnalysisModal({ onClose, onCreated }) {
             )}
           </div>
 
-          {/* Products Purchased */}
+          {/* Products Owned */}
           <div className="space-y-2">
-            <label className="block text-sm text-slate-700">Products purchased</label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-700">Products Owned</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-xs text-slate-400">
+                {selectedProducts.length === 0
+                  ? '0 products selected'
+                  : `${selectedProducts.length} product${selectedProducts.length !== 1 ? 's' : ''} selected`}
+              </span>
+            </div>
             <div className="border border-slate-200 rounded-md overflow-y-auto max-h-56 p-3 space-y-4 bg-slate-50">
               {CATEGORIES.map(cat => {
                 const cc = CATEGORY_CLASSES[cat]
@@ -426,11 +263,6 @@ function NewAnalysisModal({ onClose, onCreated }) {
                 )
               })}
             </div>
-            {selectedProducts.length > 0 && (
-              <p className="text-xs text-slate-400">
-                {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected
-              </p>
-            )}
           </div>
 
         </div>
@@ -448,7 +280,7 @@ function NewAnalysisModal({ onClose, onCreated }) {
             disabled={!canSubmit}
             className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
           >
-            {submitting ? 'Creating…' : 'Create customer'}
+            {submitting ? 'Creating…' : 'Create Customer'}
           </button>
         </div>
 
@@ -460,15 +292,16 @@ function NewAnalysisModal({ onClose, onCreated }) {
 // ── CustomerListPage ─────────────────────────────────────────────────────────
 
 function CustomerListPage() {
-  const searchQuery       = useStore(s => s.searchQuery)
-  const currentPage       = useStore(s => s.currentPage)
-  const isNewAnalysisOpen = useStore(s => s.isNewAnalysisOpen)
-  const setSearchQuery    = useStore(s => s.setSearchQuery)
-  const setCurrentPage    = useStore(s => s.setCurrentPage)
+  const searchQuery          = useStore(s => s.searchQuery)
+  const currentPage          = useStore(s => s.currentPage)
+  const isNewAnalysisOpen    = useStore(s => s.isNewAnalysisOpen)
+  const setSearchQuery       = useStore(s => s.setSearchQuery)
+  const setCurrentPage       = useStore(s => s.setCurrentPage)
   const setIsNewAnalysisOpen = useStore(s => s.setIsNewAnalysisOpen)
 
   const navigate = useNavigate()
 
+  // ── Customer data ─────────────────────────────────────────
   const [enriched, setEnriched] = useState([])
   const [loading,  setLoading]  = useState(true)
 
@@ -491,13 +324,40 @@ function CustomerListPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  // Fuse instance for name search
+  // ── API keys ──────────────────────────────────────────────
+  const [anthropicKey, setAnthropicKey] = useState('')
+  const [tavilyKey,    setTavilyKey]    = useState('')
+  const [keysSaved,    setKeysSaved]    = useState(false)
+
+  useEffect(() => {
+    getSettings().then(s => {
+      if (s.anthropic) setAnthropicKey(s.anthropic)
+      if (s.tavily)    setTavilyKey(s.tavily)
+      setKeysSaved(!!(s.anthropic?.trim() && s.tavily?.trim()))
+    })
+  }, [])
+
+  async function handleSaveKeys() {
+    if (!anthropicKey.trim() || !tavilyKey.trim()) return
+    const s = await getSettings()
+    await saveSettings({ ...s, anthropic: anthropicKey.trim(), tavily: tavilyKey.trim() })
+    setKeysSaved(true)
+  }
+
+  async function handleClearKeys() {
+    const s = await getSettings()
+    await saveSettings({ ...s, anthropic: '', tavily: '' })
+    setAnthropicKey('')
+    setTavilyKey('')
+    setKeysSaved(false)
+  }
+
+  // ── Search + filter ───────────────────────────────────────
   const fuse = useMemo(
     () => new Fuse(enriched, { keys: ['name'], threshold: 0.35, includeScore: true }),
     [enriched]
   )
 
-  // Filtered rows: exact ID match takes priority, then fuzzy name
   const filtered = useMemo(() => {
     const q = searchQuery.trim()
     if (!q) return enriched
@@ -506,17 +366,18 @@ function CustomerListPage() {
     return fuse.search(q).map(r => r.item)
   }, [searchQuery, enriched, fuse])
 
+  // ── Table ─────────────────────────────────────────────────
   const columns = useMemo(() => [
     {
       accessorKey: 'id',
-      header: 'Customer ID',
+      header: 'ID',
       cell: info => (
         <span className="text-sm text-slate-600 font-mono">{info.getValue()}</span>
       ),
     },
     {
       accessorKey: 'name',
-      header: 'Customer Name',
+      header: 'Name',
       cell: info => (
         <span className="text-sm font-medium text-slate-700">{info.getValue()}</span>
       ),
@@ -570,34 +431,88 @@ function CustomerListPage() {
   )
 
   const table = useReactTable({
-    data:                 filtered,
+    data:                  filtered,
     columns,
-    getCoreRowModel:      getCoreRowModel(),
+    getCoreRowModel:       getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    autoResetPageIndex:   false,
-    state:                { pagination },
+    autoResetPageIndex:    false,
+    state:                 { pagination },
     onPaginationChange: updater => {
-      const next = typeof updater === 'function'
-        ? updater(pagination)
-        : updater
+      const next = typeof updater === 'function' ? updater(pagination) : updater
       setCurrentPage(next.pageIndex + 1)
     },
   })
 
   const totalPages = table.getPageCount()
+  const hasData    = filtered.length > 0
 
   return (
     <div className="p-4 space-y-4">
 
       {/* Top bar */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-700">Customers</h1>
-        <button
-          onClick={() => setIsNewAnalysisOpen(true)}
-          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors`}
-        >
-          New analysis
-        </button>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold text-slate-700 shrink-0">Customers</h1>
+
+        <div className="flex items-center gap-2 flex-1 justify-end">
+          {/* Anthropic key */}
+          <input
+            type="password"
+            value={anthropicKey}
+            readOnly={keysSaved}
+            onChange={e => setAnthropicKey(e.target.value)}
+            placeholder="Anthropic API Key"
+            className={[
+              'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 w-48',
+              keysSaved
+                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
+                : 'bg-slate-50 border-slate-200 text-slate-700',
+            ].join(' ')}
+          />
+
+          {/* Tavily key */}
+          <input
+            type="password"
+            value={tavilyKey}
+            readOnly={keysSaved}
+            onChange={e => setTavilyKey(e.target.value)}
+            placeholder="Tavily API Key"
+            className={[
+              'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 w-44',
+              keysSaved
+                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
+                : 'bg-slate-50 border-slate-200 text-slate-700',
+            ].join(' ')}
+          />
+
+          {/* Save / Clear */}
+          {!keysSaved ? (
+            <button
+              onClick={handleSaveKeys}
+              disabled={!anthropicKey.trim() || !tavilyKey.trim()}
+              className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
+            >
+              Save
+            </button>
+          ) : (
+            <button
+              onClick={handleClearKeys}
+              className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors`}
+            >
+              Clear
+            </button>
+          )}
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-slate-200 shrink-0" />
+
+          {/* New Analysis */}
+          <button
+            onClick={() => setIsNewAnalysisOpen(true)}
+            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors shrink-0`}
+          >
+            New Analysis
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -605,14 +520,20 @@ function CustomerListPage() {
         type="text"
         value={searchQuery}
         onChange={e => setSearchQuery(e.target.value)}
-        placeholder="Search by name or Customer ID…"
+        placeholder="Search by ID or name..."
         className="w-full h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
       />
 
-      {/* Table */}
+      {/* Table or empty state */}
       {loading ? (
         <div className="py-16 flex justify-center">
           <span className="text-sm text-slate-400">Loading…</span>
+        </div>
+      ) : !hasData ? (
+        <div className="border border-slate-200 rounded-lg bg-white px-4 py-12 text-center text-sm text-slate-400">
+          {searchQuery
+            ? 'No customers match your search'
+            : 'No customers yet — create your first analysis'}
         </div>
       ) : (
         <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
@@ -632,28 +553,15 @@ function CustomerListPage() {
               ))}
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="px-4 py-12 text-center text-sm text-slate-400"
-                  >
-                    {searchQuery
-                      ? 'No customers match your search'
-                      : 'No customers yet — create your first analysis'}
-                  </td>
+              {table.getRowModel().rows.map(row => (
+                <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+                  {row.getVisibleCells().map(cell => (
+                    <td key={cell.id} className="px-4 py-3">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
                 </tr>
-              ) : (
-                table.getRowModel().rows.map(row => (
-                  <tr key={row.id} className="hover:bg-slate-50 transition-colors">
-                    {row.getVisibleCells().map(cell => (
-                      <td key={cell.id} className="px-4 py-3">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         </div>
@@ -719,7 +627,6 @@ const CAT_ORDER = ['Cloud', 'Modern Work', 'Security', 'AI', 'BizApps'];
 
 // ── Helpers ──────────────────────────────────────────────────
 
-// Stage badge style
 function stageCls(stage) {
   if (stage === 'Established') return 'bg-emerald-100 text-emerald-700';
   if (stage === 'Active')      return 'bg-blue-100 text-blue-700';
@@ -866,7 +773,7 @@ function PropensityPipeline({ scoresByCategory, categoryStages, onMarkAsBought }
       <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Propensity Pipeline</h2>
       <div className="space-y-4">
         {cats.map(cat => {
-          const cc = CATEGORY_CLASSES[cat];
+          const cc    = CATEGORY_CLASSES[cat];
           const stage = categoryStages?.[cat] || 'Not Started';
           return (
             <div key={cat} className="bg-white border border-slate-200 rounded">
@@ -953,18 +860,10 @@ function RoiRoadmap({ roadmap }) {
                 {phase.cfo && (
                   <div className="space-y-2 text-sm">
                     <p className="font-medium text-slate-700">{phase.cfo.headline}</p>
-                    {phase.cfo.licenceConsolidation && (
-                      <p className="text-slate-500">{phase.cfo.licenceConsolidation}</p>
-                    )}
-                    {phase.cfo.costAvoidance && (
-                      <p className="text-slate-500">{phase.cfo.costAvoidance}</p>
-                    )}
-                    {phase.cfo.productivityGain && (
-                      <p className="text-slate-500">{phase.cfo.productivityGain}</p>
-                    )}
-                    {phase.cfo.tcoNote && (
-                      <p className="text-xs text-slate-400">{phase.cfo.tcoNote}</p>
-                    )}
+                    {phase.cfo.licenceConsolidation && <p className="text-slate-500">{phase.cfo.licenceConsolidation}</p>}
+                    {phase.cfo.costAvoidance      && <p className="text-slate-500">{phase.cfo.costAvoidance}</p>}
+                    {phase.cfo.productivityGain   && <p className="text-slate-500">{phase.cfo.productivityGain}</p>}
+                    {phase.cfo.tcoNote            && <p className="text-xs text-slate-400">{phase.cfo.tcoNote}</p>}
                   </div>
                 )}
               </div>
@@ -975,9 +874,7 @@ function RoiRoadmap({ roadmap }) {
                 {phase.ciso && (
                   <div className="space-y-2 text-sm">
                     <p className="font-medium text-slate-700">{phase.ciso.headline}</p>
-                    {phase.ciso.dataResidency && (
-                      <p className="text-slate-500">{phase.ciso.dataResidency}</p>
-                    )}
+                    {phase.ciso.dataResidency && <p className="text-slate-500">{phase.ciso.dataResidency}</p>}
                     {phase.ciso.certifications?.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {phase.ciso.certifications.map(cert => (
@@ -1070,8 +967,6 @@ function CustomerDetailPage() {
   const [reanalyzePrompt, setReanalyzePrompt] = useState(false);
   const [pageError,       setPageError]       = useState(null);
 
-  // ── Data loading ──────────────────────────────────────────
-
   const loadData = useCallback(async () => {
     try {
       const c = await getCustomer(id);
@@ -1090,8 +985,6 @@ function CustomerDetailPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── Analysis trigger ──────────────────────────────────────
-
   const runAnalysis = useCallback(async () => {
     setAnalyzing(true);
     setReanalyzePrompt(false);
@@ -1105,8 +998,6 @@ function CustomerDetailPage() {
       setAnalyzing(false);
     }
   }, [customer]);
-
-  // ── Ownership mutations ───────────────────────────────────
 
   const markAsBought = useCallback(async (productName) => {
     const next = {
@@ -1132,8 +1023,6 @@ function CustomerDetailPage() {
     setReanalyzePrompt(true);
   }, [customer]);
 
-  // ── Derived data ──────────────────────────────────────────
-
   const owned = customer?.ownedProducts || [];
 
   const unownedScores = useMemo(() =>
@@ -1155,15 +1044,11 @@ function CustomerDetailPage() {
   const ownedByCategory = useMemo(() => {
     const map = {};
     for (const cat of CAT_ORDER) {
-      const prods = owned.filter(name => {
-        return PRODUCTS_BY_CATEGORY[cat].includes(name);
-      });
+      const prods = owned.filter(name => PRODUCTS_BY_CATEGORY[cat].includes(name));
       if (prods.length) map[cat] = prods;
     }
     return map;
   }, [owned]);
-
-  // ── Render guards ─────────────────────────────────────────
 
   if (loading) {
     return (
@@ -1191,12 +1076,10 @@ function CustomerDetailPage() {
 
   const profileComplete = customer.analysisComplete && analysis;
 
-  // ── Layout ────────────────────────────────────────────────
-
   return (
     <div className="min-h-screen bg-slate-50">
 
-      {/* ── Top bar ── */}
+      {/* Top bar */}
       <div className="bg-white border-b border-slate-200 px-6 py-3">
         <div className="flex items-center gap-4">
           <button
@@ -1231,7 +1114,7 @@ function CustomerDetailPage() {
         </div>
       </div>
 
-      {/* ── Re-analyze prompt banner ── */}
+      {/* Re-analyze prompt */}
       {reanalyzePrompt && (
         <div className="mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded flex items-center justify-between gap-4">
           <p className="text-sm text-amber-700">
@@ -1254,7 +1137,7 @@ function CustomerDetailPage() {
         </div>
       )}
 
-      {/* ── Analyzing state ── */}
+      {/* Analyzing state */}
       {analyzing && (
         <div className="flex flex-col items-center justify-center gap-4 py-24">
           <div className="flex gap-1.5">
@@ -1270,7 +1153,7 @@ function CustomerDetailPage() {
         </div>
       )}
 
-      {/* ── No analysis yet ── */}
+      {/* No analysis yet */}
       {!customer.analysisComplete && !analyzing && (
         <div className="flex flex-col items-center justify-center gap-4 py-24">
           <p className="text-sm text-slate-400">No analysis for this customer yet</p>
@@ -1283,7 +1166,7 @@ function CustomerDetailPage() {
         </div>
       )}
 
-      {/* ── Full profile ── */}
+      {/* Full profile */}
       {profileComplete && !analyzing && (
         <div className="p-6 space-y-6">
           <TopOpportunities scores={unownedScores} />
@@ -1305,42 +1188,7 @@ function CustomerDetailPage() {
 // SECTION 5 — API CLIENT
 // ============================================================
 
-/**
- * analyzeCustomer
- *
- * Orchestrates a full analysis cycle for a single customer:
- *   1. Reads API keys from IndexedDB (never from any other source)
- *   2. POSTs to the Netlify function at /fn/analyze
- *   3. Awaits the complete analysis JSON in the response body
- *   4. Validates the payload structure
- *   5. Persists the new analysis record to IndexedDB
- *   6. Marks the customer analysisComplete and stamps updatedAt
- *   7. Returns both updated objects so the caller can sync UI state
- *
- * Security contract:
- *   - Keys travel in the POST body only — never in headers, URLs, or logs
- *   - Keys are trimmed and validated before dispatch; any null/empty key
- *     throws before the network request is made
- *   - The function makes no assumptions about what the Netlify function
- *     logs — it never sends keys in any field whose name could be confused
- *     with a header or query parameter
- *
- * Error contract:
- *   - Every failure throws an Error with a user-facing message string
- *   - The caller is responsible for catching, displaying, and clearing
- *     the analysing state
- *
- * @param   {object}    customer         Full customer record from IndexedDB
- * @param   {function=} onStatusChange   Optional (msg: string) => void for
- *                                       granular loading-state messages
- * @returns {Promise<{ customer: object, analysis: object }>}
- */
 async function analyzeCustomer(customer, onStatusChange) {
-
-  // ── 1. Read and validate API keys ───────────────────────────────────────
-  // Keys live exclusively in the IndexedDB settings store.
-  // They must never be read from env vars, window globals, or any
-  // server-side source — this function is the sole dispatch point.
 
   let keys;
   try {
@@ -1354,30 +1202,17 @@ async function analyzeCustomer(customer, onStatusChange) {
   const tavilyKey    = keys.tavily?.trim();
   const model        = keys.model ?? 'sonnet';
 
-  if (!anthropicKey) throw new Error('Anthropic API key not set — add it in Settings before running an analysis');
-  if (!tavilyKey)    throw new Error('Tavily API key not set — add it in Settings before running an analysis');
-
-  // ── 2. Build request payload ─────────────────────────────────────────────
-  // Only the minimum fields needed by the Netlify function are included.
-  // Keys are the last fields added so any accidental partial-log
-  // of the payload body captures metadata before credentials.
+  if (!anthropicKey) throw new Error('Anthropic API key not set — add it in the toolbar before running an analysis');
+  if (!tavilyKey)    throw new Error('Tavily API key not set — add it in the toolbar before running an analysis');
 
   const payload = {
     customerId:    customer.id,
     companyName:   customer.name,
     ownedProducts: customer.ownedProducts ?? [],
     model,
-    // keys always last in the object — never aliased to header-like names
     anthropicKey,
     tavilyKey,
   };
-
-  // ── 3. Dispatch to Netlify function ──────────────────────────────────────
-  // The function runs the full pipeline (9 Tavily searches + 2 Claude calls)
-  // synchronously from the browser's perspective and returns the complete
-  // analysis JSON in the response body.
-  // Keys are transmitted once, in the body — they are never re-sent,
-  // cached, or stored by any server-side component.
 
   onStatusChange?.('Running analysis — this may take up to a minute…');
 
@@ -1388,24 +1223,18 @@ async function analyzeCustomer(customer, onStatusChange) {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
     });
-  } catch (networkErr) {
+  } catch {
     throw new Error('Network error — check your connection and try again');
   }
-
-  // ── 4. Handle HTTP-level errors ──────────────────────────────────────────
 
   if (!res.ok) {
     let msg = `Analysis function returned HTTP ${res.status}`;
     try {
       const errBody = await res.json();
-      // Use the function's error message if present; ignore any field that
-      // could re-echo key material back into the UI
       if (errBody?.error && typeof errBody.error === 'string') msg = errBody.error;
-    } catch { /* non-JSON error body — fall through to default message */ }
+    } catch { /* non-JSON error body */ }
     throw new Error(msg);
   }
-
-  // ── 5. Parse and validate response ──────────────────────────────────────
 
   let data;
   try {
@@ -1416,24 +1245,23 @@ async function analyzeCustomer(customer, onStatusChange) {
 
   const { companyProfile, productScores, roiRoadmap, modelVersion } = data;
 
-  if (!companyProfile)        throw new Error('Analysis response missing companyProfile');
+  if (!companyProfile)
+    throw new Error('Analysis response missing companyProfile');
   if (!Array.isArray(productScores) || !productScores.length)
-                              throw new Error('Analysis response missing productScores');
+    throw new Error('Analysis response missing productScores');
   if (!roiRoadmap?.phases?.length)
-                              throw new Error('Analysis response missing roiRoadmap');
-
-  // ── 6. Persist analysis record ───────────────────────────────────────────
+    throw new Error('Analysis response missing roiRoadmap');
 
   onStatusChange?.('Saving results…');
 
   const analysisRecord = {
-    id:             crypto.randomUUID(),
-    customerId:     customer.id,
-    analyzedAt:     new Date().toISOString(),
+    id:            crypto.randomUUID(),
+    customerId:    customer.id,
+    analyzedAt:    new Date().toISOString(),
     companyProfile,
     productScores,
     roiRoadmap,
-    modelVersion:   modelVersion ?? model,
+    modelVersion:  modelVersion ?? model,
   };
 
   try {
@@ -1442,8 +1270,6 @@ async function analyzeCustomer(customer, onStatusChange) {
   } catch {
     throw new Error('Analysis completed but could not be saved — try again or check available storage');
   }
-
-  // ── 7. Update customer record ────────────────────────────────────────────
 
   const updatedCustomer = {
     ...customer,
@@ -1454,11 +1280,8 @@ async function analyzeCustomer(customer, onStatusChange) {
   try {
     await putCustomer(updatedCustomer);
   } catch {
-    // Analysis is saved — non-fatal, but flag it
     console.warn('analyzeCustomer: analysis saved but customer record update failed');
   }
-
-  // ── 8. Return updated objects for caller to sync UI state ────────────────
 
   return { customer: updatedCustomer, analysis: analysisRecord };
 }
@@ -1468,46 +1291,87 @@ async function analyzeCustomer(customer, onStatusChange) {
 // ============================================================
 
 // ── Navigation bar ────────────────────────────────────────────
-// Rendered inside BrowserRouter so useLocation is always in context.
 
 function NavBar() {
-  const { pathname } = useLocation();
+  const [model, setModelState] = useState('sonnet')
 
-  const links = [
-    { to: '/',         label: 'Customers' },
-    { to: '/settings', label: 'Settings'  },
-  ];
+  useEffect(() => {
+    getSettings().then(s => setModelState(s.model ?? 'sonnet'))
+  }, [])
 
-  // Exact match for root; prefix match for all other routes.
-  const active = (to) => (to === '/' ? pathname === '/' : pathname.startsWith(to));
+  async function handleModelChange(next) {
+    setModelState(next)
+    const s = await getSettings()
+    await saveSettings({ ...s, model: next })
+  }
+
+  async function handleClearAll() {
+    await clearAllData()
+    window.location.reload()
+  }
 
   return (
     <header className="bg-white border-b border-slate-200">
-      <div className="flex items-center gap-1 px-6 h-12">
-        <span className="text-sm font-semibold text-slate-700 pr-4 select-none">
-          Cloud Voyager
-        </span>
-        {links.map(({ to, label }) => (
-          <Link
-            key={to}
-            to={to}
-            className={`h-9 px-3 flex items-center text-sm rounded transition-colors ${
-              active(to)
-                ? 'bg-slate-100 text-slate-700'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-            }`}
+      <div className="flex items-center justify-between px-6 h-12">
+
+        {/* Logo + wordmark */}
+        <div className="flex items-center gap-2.5 select-none">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="8" fill="#EFF6FF"/>
+            <path
+              d="M23 14.5c0-3.038-2.462-5.5-5.5-5.5a5.496 5.496 0 0 0-4.702 2.655A3.984 3.984 0 0 0 11 11c-2.21 0-4 1.79-4 4 0 .207.016.41.046.61C5.818 16.066 5 17.432 5 19c0 2.21 1.79 4 4 4h14a4 4 0 0 0 0-8c-.092 0-.183.004-.274.01A5.48 5.48 0 0 0 23 14.5z"
+              fill="#3B82F6"
+              fillOpacity="0.85"
+            />
+          </svg>
+          <div>
+            <p className="text-sm font-semibold text-slate-700 leading-tight">Cloud Voyager</p>
+            <p className="text-xs text-slate-400 leading-tight">Actionable sales insights</p>
+          </div>
+        </div>
+
+        {/* Right controls */}
+        <div className="flex items-center gap-3">
+
+          {/* Model toggle */}
+          <div className="flex items-center bg-slate-100 rounded-full p-0.5">
+            <button
+              onClick={() => handleModelChange('sonnet')}
+              className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
+                model === 'sonnet'
+                  ? 'bg-white text-slate-700 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Sonnet
+            </button>
+            <button
+              onClick={() => handleModelChange('opus')}
+              className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
+                model === 'opus'
+                  ? 'bg-white text-slate-700 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Opus
+            </button>
+          </div>
+
+          {/* Clear All Data */}
+          <button
+            onClick={handleClearAll}
+            className="h-8 px-3 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
           >
-            {label}
-          </Link>
-        ))}
+            Clear All Data
+          </button>
+
+        </div>
       </div>
     </header>
-  );
+  )
 }
 
 // ── Shared layout ─────────────────────────────────────────────
-// Provides the persistent nav and the full-height slate background.
-// Individual pages control their own inner structure.
 
 function Layout() {
   return (
@@ -1515,29 +1379,27 @@ function Layout() {
       <NavBar />
       <Outlet />
     </div>
-  );
+  )
 }
 
 // ── Root component ────────────────────────────────────────────
 
 function App() {
   useEffect(() => {
-    document.getElementById('loading-screen')?.remove();
-  }, []);
+    document.getElementById('loading-screen')?.remove()
+  }, [])
 
   return (
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route index                  element={<CustomerListPage />}   />
-          <Route path="/customer/:id"   element={<CustomerDetailPage />} />
-          <Route path="/settings"       element={<SettingsPage />}       />
-          {/* Catch-all: redirect unknown paths to the customer list */}
-          <Route path="*"               element={<Navigate to="/" replace />} />
+          <Route index                element={<CustomerListPage />}   />
+          <Route path="/customer/:id" element={<CustomerDetailPage />} />
+          <Route path="*"             element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>
-  );
+  )
 }
 
-export default App;
+export default App
