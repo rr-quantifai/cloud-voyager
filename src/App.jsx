@@ -1521,6 +1521,10 @@ function Layout() {
 // ── Root component ────────────────────────────────────────────
 
 function App() {
+  useEffect(() => {
+    document.getElementById('loading-screen')?.remove();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
