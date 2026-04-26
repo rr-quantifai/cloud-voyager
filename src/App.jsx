@@ -449,77 +449,75 @@ function CustomerListPage() {
   return (
     <div className="p-4 space-y-4">
 
-      {/* Top bar */}
-      <div className="flex items-center justify-between gap-3">
+      {/* Single row — search · new analysis · api keys */}
+      <div className="flex items-center gap-2">
 
-        <div className="flex items-center gap-2">
-          {/* Anthropic key */}
-          <input
-            type="password"
-            value={anthropicKey}
-            readOnly={keysSaved}
-            onChange={e => setAnthropicKey(e.target.value)}
-            placeholder="Anthropic API Key"
-            className={[
-              'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 w-48',
-              keysSaved
-                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
-                : 'bg-slate-50 border-slate-200 text-slate-700',
-            ].join(' ')}
-          />
-
-          {/* Tavily key */}
-          <input
-            type="password"
-            value={tavilyKey}
-            readOnly={keysSaved}
-            onChange={e => setTavilyKey(e.target.value)}
-            placeholder="Tavily API Key"
-            className={[
-              'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 w-44',
-              keysSaved
-                ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
-                : 'bg-slate-50 border-slate-200 text-slate-700',
-            ].join(' ')}
-          />
-
-          {/* Save / Clear */}
-          {!keysSaved ? (
-            <button
-              onClick={handleSaveKeys}
-              disabled={!anthropicKey.trim() || !tavilyKey.trim()}
-              className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
-            >
-              Save
-            </button>
-          ) : (
-            <button
-              onClick={handleClearKeys}
-              className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors`}
-            >
-              Clear
-            </button>
-          )}
-        </div>
+        {/* Search */}
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search by ID or name..."
+          className="flex-1 h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+        />
 
         {/* New Analysis */}
         <button
           onClick={() => setIsNewAnalysisOpen(true)}
-          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 transition-colors shrink-0`}
+          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shrink-0`}
         >
           New Analysis
         </button>
 
-      </div>
+        {/* Anthropic key */}
+        <input
+          type="password"
+          value={anthropicKey}
+          readOnly={keysSaved}
+          onChange={e => setAnthropicKey(e.target.value)}
+          placeholder="Anthropic API Key"
+          className={[
+            'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 w-48',
+            keysSaved
+              ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
+              : 'bg-slate-50 border-slate-200 text-slate-700',
+          ].join(' ')}
+        />
 
-      {/* Search */}
-      <input
-        type="text"
-        value={searchQuery}
-        onChange={e => setSearchQuery(e.target.value)}
-        placeholder="Search by ID or name..."
-        className="w-full h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
-      />
+        {/* Tavily key */}
+        <input
+          type="password"
+          value={tavilyKey}
+          readOnly={keysSaved}
+          onChange={e => setTavilyKey(e.target.value)}
+          placeholder="Tavily API Key"
+          className={[
+            'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300 w-44',
+            keysSaved
+              ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
+              : 'bg-slate-50 border-slate-200 text-slate-700',
+          ].join(' ')}
+        />
+
+        {/* Save / Clear */}
+        {!keysSaved ? (
+          <button
+            onClick={handleSaveKeys}
+            disabled={!anthropicKey.trim() || !tavilyKey.trim()}
+            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
+          >
+            Save
+          </button>
+        ) : (
+          <button
+            onClick={handleClearKeys}
+            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors`}
+          >
+            Clear
+          </button>
+        )}
+
+      </div>
 
       {/* Table or empty state */}
       {loading ? (
@@ -1313,7 +1311,7 @@ function NavBar() {
 
         {/* Logo + wordmark */}
         <div className="flex items-center gap-2.5 select-none">
-          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect width="32" height="32" rx="8" fill="#EFF6FF"/>
             <path
               d="M23 14.5c0-3.038-2.462-5.5-5.5-5.5a5.496 5.496 0 0 0-4.702 2.655A3.984 3.984 0 0 0 11 11c-2.21 0-4 1.79-4 4 0 .207.016.41.046.61C5.818 16.066 5 17.432 5 19c0 2.21 1.79 4 4 4h14a4 4 0 0 0 0-8c-.092 0-.183.004-.274.01A5.48 5.48 0 0 0 23 14.5z"
@@ -1322,8 +1320,8 @@ function NavBar() {
             />
           </svg>
           <div>
-            <p className="text-sm font-semibold text-slate-700 leading-tight">Cloud Voyager</p>
-            <p className="text-xs text-slate-400 leading-tight">Actionable sales insights</p>
+            <p className="text-base font-semibold text-slate-700 leading-tight">Cloud Voyager</p>
+            <p className="text-sm text-slate-400 leading-tight">Actionable sales insights</p>
           </div>
         </div>
 
