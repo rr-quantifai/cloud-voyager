@@ -440,7 +440,15 @@ function CustomerListPage() {
   const [dateSortCol, setDateSortCol] = useState(null)
   const [dateSortDir, setDateSortDir] = useState('desc')
 
+  const sortableDateCols = useMemo(() =>
+    new Set(['createdAt', 'updatedAt', 'lastAnalyzed'].filter(col => enriched.some(r => r[col])))
+  , [enriched])
+
   function cycleDateSort(col) {
+    if (col === 'createdAt') {
+      if (dateSortCol !== 'createdAt') { setDateSortCol('createdAt'); setDateSortDir('asc'); return }
+      setDateSortCol(null); setDateSortDir('desc'); return
+    }
     if (dateSortCol !== col) { setDateSortCol(col); setDateSortDir('desc'); return }
     if (dateSortDir === 'desc') { setDateSortDir('asc'); return }
     setDateSortCol(null); setDateSortDir('desc')
@@ -562,7 +570,7 @@ function CustomerListPage() {
             <button
               onClick={() => setModalState({ mode: 'edit', customer: c })}
               disabled={isAnalyzing}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:cursor-not-allowed transition-colors`}
             >
               Edit
             </button>
@@ -651,7 +659,7 @@ function CustomerListPage() {
         <button
           onClick={handleClearKeys}
           disabled={isAnalyzing || !keysSaved}
-          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
+          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:cursor-not-allowed transition-colors`}
         >
           Clear
         </button>
@@ -679,7 +687,7 @@ function CustomerListPage() {
               {table.getHeaderGroups().map(hg => (
                 <tr key={hg.id}>
                   {hg.headers.map(h => {
-                const isDateCol = ['createdAt', 'updatedAt', 'lastAnalyzed'].includes(h.column.id)
+                const isDateCol = sortableDateCols.has(h.column.id)
                 const isActive  = dateSortCol === h.column.id
                 return (
                   <th
