@@ -146,7 +146,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
   useEffect(() => { getAllCustomers().then(setAllCustomers) }, [])
 
   const nameFuse = useMemo(
-    () => new Fuse(allCustomers, { keys: ['name'], threshold: 0.3 }),
+    () => new Fuse(allCustomers, { keys: ['name'], threshold: 0.3, minMatchCharLength: 4 }),
     [allCustomers]
   )
 
@@ -163,7 +163,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
   useEffect(() => {
     setNameDismissed(false)
     const q = customerName.trim()
-    if (!q) { setNameWarning(null); return }
+    if (!q || q.length < 4) { setNameWarning(null); return }
     const results = nameFuse.search(q)
     if (results.length > 0) {
       const match = results[0].item
@@ -197,11 +197,15 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
     }
   }
 
-  const canSubmit = (isEdit || !idError) && customerId.trim() && customerName.trim() && !submitting
+  const hasChanges = !isEdit || (
+    customerName.trim() !== customer.name ||
+    JSON.stringify([...selectedProducts].sort()) !== JSON.stringify([...(customer.ownedProducts ?? [])].sort())
+  )
+  const canSubmit = hasChanges && (isEdit || !idError) && customerId.trim() && customerName.trim() && !submitting
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
     >
       <div className="bg-white rounded-lg border border-slate-200 w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
@@ -237,6 +241,8 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">ID</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-xs text-slate-400">As per Cloud Quarks</span>
               {!isEdit && idError && (
                 <>
                   <span className="text-slate-300">·</span>
@@ -253,7 +259,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
                 type="text"
                 value={customerId}
                 onChange={e => setCustomerId(e.target.value)}
-                placeholder="As per Cloud Quarks"
+                placeholder="e.g. 001"
                 className={[
                   'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
                   idError ? 'border-rose-300' : 'border-slate-200',
@@ -266,6 +272,8 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Name</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-xs text-slate-400">As per Cloud Quarks</span>
               {nameWarning && !nameDismissed && (
                 <>
                   <span className="text-slate-300">·</span>
@@ -283,7 +291,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
               type="text"
               value={customerName}
               onChange={e => setCustomerName(e.target.value)}
-              placeholder="As per Cloud Quarks"
+              placeholder="e.g. Emirates NBD"
               className={[
                 'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
                 nameWarning && !nameDismissed
@@ -313,7 +321,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
                       {cat}
                     </span>
                     {PRODUCTS_BY_CATEGORY[cat].map(product => (
-                      <label key={product} className="flex items-center gap-2 cursor-pointer group">
+                      <label key={product} onClick={() => toggleProduct(product)} className="flex items-center gap-2 cursor-pointer group">
                         <div className={"w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 " + (selectedProducts.includes(product) ? "border-slate-700" : "border-gray-300")}>
                           {selectedProducts.includes(product) && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}
                         </div>
@@ -339,7 +347,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
+            className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
           >
             {submitting
               ? (isEdit ? 'Saving…' : 'Creating…')
@@ -517,21 +525,21 @@ function CustomerListPage() {
             <button
               onClick={() => handleAnalyze(c)}
               disabled={!keysSaved || isAnalyzing}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-blue-600 text-white enabled:hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
             >
               Analyze
             </button>
             <button
               onClick={() => navigate(`/customer/${encodeURIComponent(c.id)}`)}
               disabled={!c.analysisComplete || isAnalyzing}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
             >
               View Profile
             </button>
             <button
               onClick={() => setModalState({ mode: 'edit', customer: c })}
               disabled={isAnalyzing}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
             >
               Edit
             </button>
@@ -616,7 +624,7 @@ function CustomerListPage() {
         <button
           onClick={handleSaveKeys}
           disabled={keysSaved || !anthropicKey.trim() || !tavilyKey.trim()}
-          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
+          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
         >
           Save
         </button>
