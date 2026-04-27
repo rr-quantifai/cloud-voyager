@@ -603,10 +603,10 @@ async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey
   try {
     call1 = JSON.parse(raw1);
   } catch {
-    throw new Error('Claude Call 1 returned unparseable JSON — check your Anthropic API key');
+    throw new Error('Something went wrong — Claude Call 1 returned unparseable JSON, check Anthropic API details');
   }
   if (!call1.companyProfile || !Array.isArray(call1.productScores)) {
-    throw new Error('Claude Call 1 response is missing required fields');
+    throw new Error('Something went wrong — Claude Call 1 response is missing required fields');
   }
 
   // Normalise labels to the canonical score bands — overrides whatever Claude emits
@@ -623,10 +623,10 @@ async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey
   try {
     roiRoadmap = JSON.parse(raw2);
   } catch {
-    throw new Error('Claude Call 2 returned unparseable JSON');
+    throw new Error('Something went wrong — Claude Call 2 returned unparseable JSON, check Anthropic API details');
   }
   if (!Array.isArray(roiRoadmap.phases) || !roiRoadmap.phases.length) {
-    throw new Error('Claude Call 2 response is missing roadmap phases');
+    throw new Error('Something went wrong — Claude Call 2 response is missing roadmap phases');
   }
 
   // Stamp generatedAt server-side so the client value is authoritative

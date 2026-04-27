@@ -102,10 +102,10 @@ function AnalysisStrip({ state }) {
   const dots = '.'.repeat(dotCount)
 
   const phaseLabel = {
-    initializing: 'Initializing analysis',
-    tavily:       'Searching 9 intelligence sources across strategy, infrastructure, security, AI, and enterprise systems',
-    claude1:      'Building company profile and scoring propensity across 22 Microsoft products',
-    claude2:      'Generating 12-month CTO · CFO · CISO roadmap',
+    initializing: 'initializing analysis',
+    tavily:       'searching 9 intelligence sources across strategy, infrastructure, security, AI, and enterprise systems',
+    claude1:      'building company profile and scoring propensity across 22 Microsoft products',
+    claude2:      'generating 12-month CTO, CFO, and CISO roadmaps',
   }
 
   return (
@@ -114,7 +114,7 @@ function AnalysisStrip({ state }) {
         <span className="text-slate-300">Analysis progress is displayed here</span>
       ) : state.phase === 'complete' ? (
         <span className="text-emerald-400">
-          {state.customerId}: Analysis complete — click View Profile
+          {state.customerId}: Analysis complete — check customer profile to view analysis
         </span>
       ) : state.phase === 'error' ? (
         <span className="text-rose-400">
@@ -122,7 +122,7 @@ function AnalysisStrip({ state }) {
         </span>
       ) : (
         <span className="text-slate-300">
-          {state.customerId}: {phaseLabel[state.phase]}<span>{dots}</span>
+          {state.customerId}: Analysis in progress — {phaseLabel[state.phase]}<span>{dots}</span>
         </span>
       )}
     </div>
@@ -1208,15 +1208,15 @@ async function analyzeCustomer(customer) {
     const settings = await getSettings()
     keys = settings ?? {}
   } catch {
-    throw new Error('Could not read API keys from settings — try reloading the app')
+    throw new Error('Something went wrong — could not read API keys, try reloading the app')
   }
 
   const anthropicKey = keys.anthropic?.trim()
   const tavilyKey    = keys.tavily?.trim()
   const model        = keys.model ?? 'sonnet'
 
-  if (!anthropicKey) throw new Error('Anthropic API key not set — add it in the toolbar before running an analysis')
-  if (!tavilyKey)    throw new Error('Tavily API key not set — add it in the toolbar before running an analysis')
+  if (!anthropicKey) throw new Error('Something went wrong — input Anthropic API details and try again')
+  if (!tavilyKey)    throw new Error('Something went wrong — input Tavily API details and try again')
 
   const payload = {
     customerId:    customer.id,
@@ -1235,7 +1235,7 @@ async function analyzeCustomer(customer) {
       body:    JSON.stringify(payload),
     })
   } catch {
-    throw new Error('Network error — check your connection and try again')
+    throw new Error('Something went wrong — network error, check your connection and try again')
   }
 
   if (!res.ok) {
@@ -1251,14 +1251,14 @@ async function analyzeCustomer(customer) {
   try {
     data = await res.json()
   } catch {
-    throw new Error('Malformed response from analysis function — could not parse JSON')
+    throw new Error('Something went wrong — malformed response from analysis function, could not parse JSON, check with developer')
   }
 
   const { companyProfile, productScores, roiRoadmap, modelVersion } = data
 
-  if (!companyProfile)                                  throw new Error('Analysis response missing companyProfile')
-  if (!Array.isArray(productScores) || !productScores.length) throw new Error('Analysis response missing productScores')
-  if (!roiRoadmap?.phases?.length)                      throw new Error('Analysis response missing roiRoadmap')
+  if (!companyProfile)                                  throw new Error('Something went wrong — analysis response missing companyProfile, check with developer')
+  if (!Array.isArray(productScores) || !productScores.length) throw new Error('Something went wrong — analysis response missing productScores, check with developer')
+  if (!roiRoadmap?.phases?.length)                      throw new Error('Something went wrong — analysis response missing roiRoadmap, check with developer')
 
   const analysisRecord = {
     id:            crypto.randomUUID(),
@@ -1274,7 +1274,7 @@ async function analyzeCustomer(customer) {
     await deleteAnalysesForCustomer(customer.id)
     await putAnalysis(analysisRecord)
   } catch {
-    throw new Error('Analysis completed but could not be saved — try again or check available storage')
+    throw new Error('Something went wrong — analysis completed but could not be saved due to storage issues, check with developer')
   }
 
   const updatedCustomer = { ...customer, analysisComplete: true, updatedAt: new Date().toISOString() }
