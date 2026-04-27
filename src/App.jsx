@@ -3,6 +3,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { BrowserRouter, Routes, Route, Outlet, Navigate, useParams, useNavigate } from 'react-router-dom'
 import {
   useReactTable,
@@ -27,6 +28,7 @@ import {
   getAllCustomers,
   createCustomer,
   putCustomer,
+  deleteCustomer,
   getLatestAnalysis,
   putAnalysis,
   deleteAnalysesForCustomer,
@@ -45,7 +47,7 @@ const useStore = create((set) => ({
 }))
 
 // ============================================================
-// SECTION 3 — CUSTOMER LIST PAGE
+// SECTION 2 — CUSTOMER LIST PAGE
 // ============================================================
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -203,7 +205,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
   )
   const canSubmit = hasChanges && (isEdit || !idError) && customerId.trim() && customerName.trim() && !submitting
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
@@ -357,7 +359,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
 
       </div>
     </div>
-  )
+  , document.body)
 }
 
 // ── CustomerListPage ─────────────────────────────────────────────────────────
@@ -543,6 +545,13 @@ function CustomerListPage() {
             >
               Edit
             </button>
+            <button
+              onClick={async () => { await deleteCustomer(c.id); await loadData() }}
+              disabled={isAnalyzing}
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-rose-50 text-rose-600 enabled:hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
+            >
+              Delete
+            </button>
           </div>
         )
       },
@@ -632,7 +641,8 @@ function CustomerListPage() {
         {/* Clear */}
         <button
           onClick={handleClearKeys}
-          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors`}
+          disabled={isAnalyzing}
+          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
         >
           Clear
         </button>
@@ -674,7 +684,7 @@ function CustomerListPage() {
               {table.getRowModel().rows.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50 transition-colors">
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} className="px-4 py-3">
+  <td key={cell.id} className={cell.column.id === 'actions' ? 'py-4 pr-4' : 'px-4 py-3'}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -723,7 +733,7 @@ function CustomerListPage() {
 }
 
 // ============================================================
-// SECTION 4 — CUSTOMER DETAIL PAGE
+// SECTION 3 — CUSTOMER DETAIL PAGE
 // ============================================================
 
 const CONF_CLS = {
@@ -1204,7 +1214,7 @@ function CustomerDetailPage() {
 }
 
 // ============================================================
-// SECTION 5 — API CLIENT
+// SECTION 4 — API CLIENT
 // ============================================================
 
 async function analyzeCustomer(customer) {
@@ -1294,7 +1304,7 @@ async function analyzeCustomer(customer) {
 }
 
 // ============================================================
-// SECTION 6 — ROUTER AND EXPORT
+// SECTION 5 — ROUTER AND EXPORT
 // ============================================================
 
 function NavBar() {
