@@ -8,7 +8,6 @@ import { BrowserRouter, Routes, Route, Outlet, Navigate, useParams, useNavigate 
 import {
   useReactTable,
   getCoreRowModel,
-  getPaginationRowModel,
   flexRender,
 } from '@tanstack/react-table'
 import { create } from 'zustand'
@@ -19,7 +18,6 @@ import {
   PRODUCTS_BY_CATEGORY,
   CATEGORY_CLASSES,
   computeCategoryStages,
-  PAGE_SIZE,
   BUTTON_H,
 } from './constants.js'
 
@@ -40,10 +38,10 @@ import {
 // ─── Zustand Store ────────────────────────────────────────────────────────────
 
 const useStore = create((set) => ({
-  searchQuery:    '',
-  currentPage:    1,
-  setSearchQuery: (searchQuery) => set({ searchQuery, currentPage: 1 }),
-  setCurrentPage: (currentPage) => set({ currentPage }),
+  searchQuery:       '',
+  totalCustomers:    0,
+  setSearchQuery:    (searchQuery) => set({ searchQuery }),
+  setTotalCustomers: (totalCustomers) => set({ totalCustomers }),
 }))
 
 // ============================================================
@@ -91,7 +89,7 @@ function CategoryStagesFull({ categoryStages }) {
 
 // ── AnalysisStrip ─────────────────────────────────────────────────────────────
 
-function AnalysisStrip({ state }) {
+function AnalysisStrip({ state, onClear }) {
   const [dotCount, setDotCount] = useState(1)
   const isInProgress = state && !['complete', 'error'].includes(state.phase)
 
@@ -111,22 +109,31 @@ function AnalysisStrip({ state }) {
   }
 
   return (
-    <div className="bg-slate-900 rounded-md px-4 h-9 flex items-center font-mono text-xs overflow-hidden">
-      {!state ? (
-        <span className="text-slate-300">Analysis progress is displayed here</span>
-      ) : state.phase === 'complete' ? (
-        <span className="text-emerald-400">
-          {state.customerId}: Analysis complete — check customer profile to view analysis
-        </span>
-      ) : state.phase === 'error' ? (
-        <span className="text-rose-400">
-          {state.errorMessage ?? `${state.customerId}: Something went wrong — try again`}
-        </span>
-      ) : (
-        <span className="text-slate-300">
-          {state.customerId}: Analysis in progress — {phaseLabel[state.phase]}<span>{dots}</span>
-        </span>
-      )}
+    <div className="bg-slate-900 rounded-md px-4 h-9 flex items-center justify-between font-mono text-xs">
+      <span className="flex-1 min-w-0 overflow-hidden">
+        {!state ? (
+          <span className="text-slate-300">Analysis progress is displayed here</span>
+        ) : state.phase === 'complete' ? (
+          <span className="text-emerald-400">
+            {state.customerId}: Analysis complete — check customer profile to view analysis
+          </span>
+        ) : state.phase === 'error' ? (
+          <span className="text-rose-400">
+            {state.errorMessage ?? `${state.customerId}: Something went wrong — try again`}
+          </span>
+        ) : (
+          <span className="text-slate-300">
+            {state.customerId}: Analysis in progress — {phaseLabel[state.phase]}<span>{dots}</span>
+          </span>
+        )}
+      </span>
+      <button
+        onClick={onClear}
+        disabled={!state}
+        className="ml-4 text-slate-500 enabled:hover:text-slate-300 disabled:cursor-default shrink-0 transition-colors"
+      >
+        Clear
+      </button>
     </div>
   )
 }
@@ -361,10 +368,9 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
 // ── CustomerListPage ─────────────────────────────────────────────────────────
 
 function CustomerListPage() {
-  const searchQuery   = useStore(s => s.searchQuery)
-  const currentPage   = useStore(s => s.currentPage)
-  const setSearchQuery = useStore(s => s.setSearchQuery)
-  const setCurrentPage = useStore(s => s.setCurrentPage)
+  const searchQuery       = useStore(s => s.searchQuery)
+  const setSearchQuery    = useStore(s => s.setSearchQuery)
+  const setTotalCustomers = useStore(s => s.setTotalCustomers)
 
   const navigate = useNavigate()
 
@@ -382,6 +388,7 @@ function CustomerListPage() {
       })
     )
     setEnriched(rows)
+    setTotalCustomers(rows.length)
     setLoading(false)
   }, [])
 
@@ -430,6 +437,15 @@ function CustomerListPage() {
     [analysisState]
   )
 
+  const [dateSortCol, setDateSortCol] = useState(null)
+  const [dateSortDir, setDateSortDir] = useState('desc')
+
+  function cycleDateSort(col) {
+    if (dateSortCol !== col) { setDateSortCol(col); setDateSortDir('desc'); return }
+    if (dateSortDir === 'desc') { setDateSortDir('asc'); return }
+    setDateSortCol(null); setDateSortDir('desc')
+  }
+
   const handleAnalyze = useCallback(async (customer) => {
     phaseTimers.current.forEach(clearTimeout)
     phaseTimers.current = []
@@ -470,6 +486,15 @@ function CustomerListPage() {
     if (byId.length) return byId
     return fuse.search(q).map(r => r.item)
   }, [searchQuery, enriched, fuse])
+
+  const sortedFiltered = useMemo(() => {
+    if (!dateSortCol) return filtered
+    return [...filtered].sort((a, b) => {
+      const av = a[dateSortCol] ? new Date(a[dateSortCol]).getTime() : 0
+      const bv = b[dateSortCol] ? new Date(b[dateSortCol]).getTime() : 0
+      return dateSortDir === 'desc' ? bv - av : av - bv
+    })
+  }, [filtered, dateSortCol, dateSortDir])
 
   // ── Table columns ─────────────────────────────────────────
   const columns = useMemo(() => [
@@ -554,26 +579,13 @@ function CustomerListPage() {
     },
   ], [navigate, handleAnalyze, isAnalyzing, keysSaved])
 
-  const pagination = useMemo(
-    () => ({ pageIndex: currentPage - 1, pageSize: PAGE_SIZE }),
-    [currentPage]
-  )
-
   const table = useReactTable({
-    data:                  filtered,
+    data:            sortedFiltered,
     columns,
-    getCoreRowModel:       getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    autoResetPageIndex:    false,
-    state:                 { pagination },
-    onPaginationChange: updater => {
-      const next = typeof updater === 'function' ? updater(pagination) : updater
-      setCurrentPage(next.pageIndex + 1)
-    },
+    getCoreRowModel: getCoreRowModel(),
   })
 
-  const totalPages = table.getPageCount()
-  const hasData    = filtered.length > 0
+  const hasData = sortedFiltered.length > 0
 
   const inputBase   = 'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none'
   const inputSaved  = 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
@@ -591,7 +603,8 @@ function CustomerListPage() {
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="Search by ID or name..."
-          className="flex-1 h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
+          disabled={enriched.length === 0}
+          className="flex-1 h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
         />
 
         {/* Create Customer */}
@@ -637,7 +650,7 @@ function CustomerListPage() {
         {/* Clear */}
         <button
           onClick={handleClearKeys}
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || !keysSaved}
           className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
         >
           Clear
@@ -646,7 +659,7 @@ function CustomerListPage() {
       </div>
 
       {/* Analysis progress strip */}
-      <AnalysisStrip state={analysisState} />
+      <AnalysisStrip state={analysisState} onClear={() => setAnalysisState(null)} />
 
       {/* Table or empty state */}
       {loading ? (
@@ -665,14 +678,19 @@ function CustomerListPage() {
             <thead className="bg-slate-50 border-b border-slate-200">
               {table.getHeaderGroups().map(hg => (
                 <tr key={hg.id}>
-                  {hg.headers.map(h => (
-                    <th
-                      key={h.id}
-                      className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
-                    >
-                      {flexRender(h.column.columnDef.header, h.getContext())}
-                    </th>
-                  ))}
+                  {hg.headers.map(h => {
+                const isDateCol = ['createdAt', 'updatedAt', 'lastAnalyzed'].includes(h.column.id)
+                const isActive  = dateSortCol === h.column.id
+                return (
+                  <th
+                    key={h.id}
+                    onClick={isDateCol ? () => cycleDateSort(h.column.id) : undefined}
+                    className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${isDateCol ? 'cursor-pointer select-none' : ''} ${isActive ? (dateSortDir === 'desc' ? 'text-blue-600' : 'text-rose-500') : 'text-slate-500'}`}
+                  >
+                    {flexRender(h.column.columnDef.header, h.getContext())}
+                  </th>
+                )
+              })}
                 </tr>
               ))}
             </thead>
@@ -688,29 +706,6 @@ function CustomerListPage() {
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-400">Page {currentPage} of {totalPages}</p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={!table.getCanPreviousPage()}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={!table.getCanNextPage()}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
-            >
-              Next
-            </button>
-          </div>
         </div>
       )}
 
@@ -1316,6 +1311,8 @@ function NavBar() {
     await saveSettings({ ...s, model: next })
   }
 
+  const totalCustomers = useStore(s => s.totalCustomers)
+
   async function handleClearAll() {
     await clearAllData()
     window.location.reload()
@@ -1358,7 +1355,8 @@ function NavBar() {
           </div>
           <button
             onClick={handleClearAll}
-            className="h-8 px-3 rounded-md text-xs font-medium text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
+            disabled={totalCustomers === 0}
+            className="h-8 px-3 rounded-md text-xs font-medium text-rose-600 enabled:hover:bg-rose-50 border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Clear All Data
           </button>

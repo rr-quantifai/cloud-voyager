@@ -74,8 +74,6 @@ export function computeCategoryStages(ownedProducts) {
 
 // ─── UI Constants ─────────────────────────────────────────────────────────────
 
-export const PAGE_SIZE = 25
-
 export const BUTTON_H = 'h-9'
 
 // ─── IndexedDB Store Names ────────────────────────────────────────────────────
