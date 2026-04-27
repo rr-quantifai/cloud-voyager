@@ -78,22 +78,6 @@ export const PAGE_SIZE = 25
 
 export const BUTTON_H = 'h-9'
 
-// ─── Model Options ────────────────────────────────────────────────────────────
-
-export const MODEL_OPTIONS = [
-  {
-    value: 'sonnet',
-    label: 'Sonnet',
-    tag: 'Recommended',
-  },
-  {
-    value: 'opus',
-    label: 'Opus',
-    tag: null,
-    note: 'Opus is approximately 15× more expensive per analysis than Sonnet',
-  },
-]
-
 // ─── IndexedDB Store Names ────────────────────────────────────────────────────
 
 export const DB_NAME    = 'cloud-voyager'

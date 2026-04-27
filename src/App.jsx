@@ -447,13 +447,9 @@ function CustomerListPage() {
       await loadData()
     } catch (err) {
       phaseTimers.current.forEach(clearTimeout)
-      const msg = (err.message ?? '').toLowerCase()
-      let errorMessage = `${customer.id}: Something went wrong — try again`
-      if (msg.includes('anthropic') || msg.includes('401') || msg.includes('api key')) {
-        errorMessage = `${customer.id}: Incorrect Anthropic API details — input correct details and try again`
-      } else if (msg.includes('tavily')) {
-        errorMessage = `${customer.id}: Incorrect Tavily API details — input correct details and try again`
-      }
+      const errorMessage = err.message
+        ? `${customer.id}: ${err.message}`
+        : `${customer.id}: Something went wrong — try again`
       setAnalysisState({ customerId: customer.id, phase: 'error', errorMessage })
     }
   }, [loadData])
@@ -531,7 +527,7 @@ function CustomerListPage() {
             <button
               onClick={() => navigate(`/customer/${encodeURIComponent(c.id)}`)}
               disabled={!c.analysisComplete || isAnalyzing}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-700 text-white hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
             >
               View Profile
             </button>

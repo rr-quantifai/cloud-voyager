@@ -246,10 +246,12 @@ async function tavilySearch(query, apiKey) {
         max_results:    5,
       }),
     });
-    if (!res.ok) return null;
+    if (res.status === 401 || res.status === 403) throw new Error('TAVILY_AUTH_ERROR');
+    if (!res.ok) throw new Error('TAVILY_ERROR');
     return await res.json();
-  } catch {
-    return null;
+  } catch (err) {
+    if (err.message === 'TAVILY_AUTH_ERROR' || err.message === 'TAVILY_ERROR') throw err;
+    throw new Error('TAVILY_ERROR');
   }
 }
 
@@ -379,14 +381,8 @@ async function claudeCall(systemPrompt, userContent, apiKey, model) {
   });
 
   if (!res.ok) {
-    let msg = `Anthropic API returned HTTP ${res.status}`;
-    try {
-      const err = await res.json();
-      // Only forward the error type/message — never forward anything that
-      // could contain key material reflected back from the API.
-      if (err?.error?.message) msg = err.error.message;
-    } catch { /* non-JSON error body */ }
-    throw new Error(msg);
+    const errMarkers = { 401: 'ANTHROPIC_AUTH_ERROR', 402: 'ANTHROPIC_PAYMENT_ERROR', 429: 'ANTHROPIC_RATE_LIMIT_ERROR', 500: 'ANTHROPIC_SERVER_ERROR' };
+    throw new Error(errMarkers[res.status] || `ANTHROPIC_HTTP_${res.status}`);
   }
 
   const data = await res.json();
@@ -681,9 +677,9 @@ exports.handler = async (event) => {
   if (!companyName?.trim())
     return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'companyName is required' }) };
   if (!anthropicKey?.trim())
-    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Anthropic API key is required — add it in Settings' }) };
+    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Something went wrong — input Anthropic API details and try again' }) };
   if (!tavilyKey?.trim())
-    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Tavily API key is required — add it in Settings' }) };
+    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Something went wrong — input Tavily API details and try again' }) };
 
   try {
     const result = await runPipeline({
@@ -702,10 +698,19 @@ exports.handler = async (event) => {
   } catch (err) {
     // err.message is safe to surface — it is constructed internally and never
     // contains API key material or raw API response bodies.
+    const errMessages = {
+      ANTHROPIC_AUTH_ERROR:       'Something went wrong — incorrect Anthropic API details, input correct details and try again',
+      ANTHROPIC_PAYMENT_ERROR:    'Something went wrong — check your Anthropic account and try again',
+      ANTHROPIC_RATE_LIMIT_ERROR: 'Something went wrong — Anthropic rate limit exceeded, try again later',
+      ANTHROPIC_SERVER_ERROR:     'Something went wrong — Anthropic service error, try again later',
+      TAVILY_AUTH_ERROR:          'Something went wrong — incorrect Tavily API details, input correct details and try again',
+      TAVILY_ERROR:               'Something went wrong — check your Tavily account and try again',
+    };
+    const userMsg = errMessages[err.message] || err.message || 'Something went wrong — try again';
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: err.message || 'Analysis pipeline failed' }),
+      body: JSON.stringify({ error: userMsg }),
     };
   }
 };
