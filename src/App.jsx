@@ -314,12 +314,9 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
                     </span>
                     {PRODUCTS_BY_CATEGORY[cat].map(product => (
                       <label key={product} className="flex items-center gap-2 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={selectedProducts.includes(product)}
-                          onChange={() => toggleProduct(product)}
-                          className="accent-slate-500 w-3.5 h-3.5 shrink-0"
-                        />
+                        <div className={"w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 " + (selectedProducts.includes(product) ? "border-slate-700" : "border-gray-300")}>
+                          {selectedProducts.includes(product) && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#334155" strokeWidth="4"><path d="M20 6L9 17l-5-5"/></svg>}
+                        </div>
                         <span className="text-sm text-slate-700 group-hover:text-slate-900">{product}</span>
                       </label>
                     ))}
