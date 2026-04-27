@@ -79,7 +79,7 @@ function CategoryStagesFull({ categoryStages }) {
               isNS ? 'bg-slate-100 text-slate-400' : `${cc.bg} ${cc.text}`
             }`}
           >
-            {cat} · {stage}
+            {cat}
           </span>
         )
       })}
@@ -111,7 +111,7 @@ function AnalysisStrip({ state }) {
   return (
     <div className="bg-slate-900 rounded-md px-4 h-9 flex items-center font-mono text-xs overflow-hidden">
       {!state ? (
-        <span className="text-slate-600">Analysis progress is displayed here</span>
+        <span className="text-slate-300">Analysis progress is displayed here</span>
       ) : state.phase === 'complete' ? (
         <span className="text-emerald-400">
           {state.customerId}: Analysis complete — click View Profile
@@ -490,7 +490,7 @@ function CustomerListPage() {
     },
     {
       accessorKey: 'categoryStages',
-      header: 'Category Stages',
+      header: 'Product Stages',
       cell: info => <CategoryStagesFull categoryStages={info.getValue()} />,
     },
     {
@@ -520,25 +520,25 @@ function CustomerListPage() {
       cell: ({ row }) => {
         const c = row.original
         return (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => handleAnalyze(c)}
               disabled={!keysSaved || isAnalyzing}
-              className="h-7 px-2.5 rounded text-xs font-semibold uppercase tracking-wide text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
             >
               Analyze
             </button>
             <button
               onClick={() => navigate(`/customer/${encodeURIComponent(c.id)}`)}
               disabled={!c.analysisComplete || isAnalyzing}
-              className="h-7 px-2.5 rounded text-xs font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
             >
               View Profile
             </button>
             <button
               onClick={() => setModalState({ mode: 'edit', customer: c })}
               disabled={isAnalyzing}
-              className="h-7 px-2.5 rounded text-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
             >
               Edit
             </button>
@@ -654,7 +654,7 @@ function CustomerListPage() {
         </div>
       ) : (
         <div className="border border-slate-200 rounded-lg overflow-x-auto bg-white">
-          <table className="w-full text-left">
+          <table className="w-full text-left whitespace-nowrap">
             <thead className="bg-slate-50 border-b border-slate-200">
               {table.getHeaderGroups().map(hg => (
                 <tr key={hg.id}>
@@ -1330,7 +1330,7 @@ function NavBar() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">Cloud Voyager</h1>
-            <p className="text-xs text-slate-400 leading-tight">Sales intelligence</p>
+            <p className="text-xs text-slate-400 leading-tight">Actionable sales insights</p>
           </div>
         </div>
 
