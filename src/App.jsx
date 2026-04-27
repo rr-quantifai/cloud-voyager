@@ -244,13 +244,10 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">ID</span>
               <span className="text-slate-300">·</span>
-              <span className="text-xs text-slate-400">As per Cloud Quarks</span>
-              {!isEdit && idError && (
-                <>
-                  <span className="text-slate-300">·</span>
-                  <span className="text-xs text-rose-600">{idError}</span>
-                </>
-              )}
+              {!isEdit && idError
+                ? <span className="text-xs text-rose-600">{idError}</span>
+                : <span className="text-xs text-slate-400">As per Cloud Quarks</span>
+              }
             </div>
             {isEdit ? (
               <div className="w-full h-9 px-3 rounded-md border border-slate-200 bg-slate-100 text-sm text-slate-400 font-mono flex items-center">
@@ -275,19 +272,18 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Name</span>
               <span className="text-slate-300">·</span>
-              <span className="text-xs text-slate-400">As per Cloud Quarks</span>
-              {nameWarning && !nameDismissed && (
-                <>
-                  <span className="text-slate-300">·</span>
-                  <span className="text-xs text-amber-600">Customer with similar name already exists — {nameWarning.matchedId}</span>
-                  <button
-                    onClick={() => setNameDismissed(true)}
-                    className="text-xs text-amber-500 hover:text-amber-700 underline"
-                  >
-                    Dismiss
-                  </button>
-                </>
-              )}
+              {nameWarning && !nameDismissed
+                ? <>
+                    <span className="text-xs text-amber-600">Customer with similar name already exists — {nameWarning.matchedId}</span>
+                    <button
+                      onClick={() => setNameDismissed(true)}
+                      className="text-xs text-amber-500 hover:text-amber-700 underline"
+                    >
+                      Dismiss
+                    </button>
+                  </>
+                : <span className="text-xs text-slate-400">As per Cloud Quarks</span>
+              }
             </div>
             <input
               type="text"
