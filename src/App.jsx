@@ -255,8 +255,8 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
                 onChange={e => setCustomerId(e.target.value)}
                 placeholder="As per Cloud Quarks"
                 className={[
-                  'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none focus:ring-1',
-                  idError ? 'border-rose-300 focus:ring-rose-200' : 'border-slate-200 focus:ring-slate-300',
+                  'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
+                  idError ? 'border-rose-300' : 'border-slate-200',
                 ].join(' ')}
               />
             )}
@@ -269,7 +269,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
               {nameWarning && !nameDismissed && (
                 <>
                   <span className="text-slate-300">·</span>
-                  <span className="text-xs text-amber-600">Similar name exists — {nameWarning.matchedId}</span>
+                  <span className="text-xs text-amber-600">Customer with similar name already exists — {nameWarning.matchedId}</span>
                   <button
                     onClick={() => setNameDismissed(true)}
                     className="text-xs text-amber-500 hover:text-amber-700 underline"
@@ -285,10 +285,10 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
               onChange={e => setCustomerName(e.target.value)}
               placeholder="As per Cloud Quarks"
               className={[
-                'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none focus:ring-1',
+                'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
                 nameWarning && !nameDismissed
-                  ? 'border-amber-300 focus:ring-amber-200'
-                  : 'border-slate-200 focus:ring-slate-300',
+                  ? 'border-amber-300'
+                  : 'border-slate-200',
               ].join(' ')}
             />
           </div>
@@ -565,9 +565,9 @@ function CustomerListPage() {
   const totalPages = table.getPageCount()
   const hasData    = filtered.length > 0
 
-  const inputBase   = 'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none focus:ring-1'
+  const inputBase   = 'h-9 px-3 rounded-md border text-sm placeholder-slate-400 focus:outline-none'
   const inputSaved  = 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
-  const inputNormal = 'bg-slate-50 border-slate-200 text-slate-700 focus:ring-slate-300'
+  const inputNormal = 'bg-slate-50 border-slate-200 text-slate-700'
 
   return (
     <div className="p-4 space-y-3">
@@ -1202,7 +1202,7 @@ function CustomerDetailPage() {
 // SECTION 5 — API CLIENT
 // ============================================================
 
-async function analyzeCustomer(customer, onStatusChange) {
+async function analyzeCustomer(customer) {
   let keys
   try {
     const settings = await getSettings()
@@ -1226,8 +1226,6 @@ async function analyzeCustomer(customer, onStatusChange) {
     anthropicKey,
     tavilyKey,
   }
-
-  onStatusChange?.('Running analysis — this may take up to a minute…')
 
   let res
   try {
@@ -1261,8 +1259,6 @@ async function analyzeCustomer(customer, onStatusChange) {
   if (!companyProfile)                                  throw new Error('Analysis response missing companyProfile')
   if (!Array.isArray(productScores) || !productScores.length) throw new Error('Analysis response missing productScores')
   if (!roiRoadmap?.phases?.length)                      throw new Error('Analysis response missing roiRoadmap')
-
-  onStatusChange?.('Saving results…')
 
   const analysisRecord = {
     id:            crypto.randomUUID(),
