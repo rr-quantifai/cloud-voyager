@@ -7,7 +7,7 @@
     "hqLocation": "Dubai International Financial Centre (DIFC), UAE",
     "operatingRegions": ["UAE", "Saudi Arabia", "Kuwait", "Bahrain"],
     "currentTechStack": ["Microsoft 365 E3/E5", "Microsoft Teams", "Azure Virtual Machines", "Microsoft Entra ID", "Salesforce CRM", "On-premises SQL Server"],
-    "itMaturityLevel": "Moderate-high",
+    "itMaturityLevel": "Moderate",
     "keyBusinessChallenges": [
       "CBUAE and DFSA compliance gaps in data protection and threat detection",
       "Fragmented data infrastructure across on-premises SQL Server and cloud workloads",
@@ -132,42 +132,42 @@
       "product": "Microsoft Viva",
       "category": "Modern Work",
       "score": 45,
-      "label": "Medium",
+      "label": "Moderate",
       "rationale": "M365 E3/E5 and Teams are both owned, satisfying the technology progression trigger — however the 800-employee headcount falls below the 3,000-employee threshold where Viva's employee experience and analytics platform delivers its strongest ROI, and no HR transformation programme signals have been identified that would elevate urgency; the case is valid as a future-state conversation once the security and data infrastructure phases are complete, but it should not lead the engagement"
     },
     {
       "product": "Azure App Service",
       "category": "Cloud",
       "score": 38,
-      "label": "Medium",
+      "label": "Moderate",
       "rationale": "Azure Virtual Machines are already in production, satisfying the technology progression trigger for App Service — investment management firms of this size typically run internal client portals or reporting applications that would benefit from a managed PaaS deployment model rather than IaaS; however, no specific application development signals or software engineering team have been confirmed for this firm, which limits the confidence of this signal; the case is worth exploring in a discovery conversation but should not be presented as a primary opportunity"
     },
     {
       "product": "Azure Kubernetes Service",
       "category": "Cloud",
       "score": 32,
-      "label": "Medium",
+      "label": "Moderate",
       "rationale": "Azure Virtual Machines are owned, satisfying the base technology progression trigger — however no DevOps culture, microservices architecture signals, or platform engineering hiring patterns have been confirmed for this firm; the 800-employee financial services profile does not typically generate containerisation requirements that would make AKS a near-term priority, and this should be treated as a longer-horizon conversation contingent on application modernisation signals emerging from the App Service discovery"
     },
     {
       "product": "Copilot Studio",
       "category": "AI",
       "score": 42,
-      "label": "Medium",
+      "label": "Moderate",
       "rationale": "Wealth advisory client service operations typically include recurring client query handling, onboarding workflows, and document request processes that a Copilot Studio agent could automate — propensity increases materially once Copilot for M365 is deployed, as Copilot Studio extends that AI investment into structured client-facing and internal workflows without requiring a separate AI infrastructure; the medium rating reflects the dependency on Copilot for M365 adoption maturity before this conversation is most productive"
     },
     {
       "product": "Azure AI Studio",
       "category": "AI",
       "score": 34,
-      "label": "Medium",
+      "label": "Moderate",
       "rationale": "Azure AI Studio becomes relevant once Azure OpenAI Service is deployed and the firm seeks to build custom model pipelines for investment research or risk analytics — the technology dependency is direct and the use case is valid for a wealth advisory firm of this profile; however, no in-house R&D function or data science team has been confirmed, which limits near-term demand; this is a phase-three conversation that should be introduced once Azure OpenAI is operational and internal adoption is visible"
     },
     {
       "product": "Azure Machine Learning",
       "category": "AI",
       "score": 36,
-      "label": "Medium",
+      "label": "Moderate",
       "rationale": "Financial services sector and predictive analytics use cases are valid signals — portfolio risk modelling and client churn prediction are established ML applications in wealth management, and the Azure infrastructure footprint provides the compute foundation; however, no data science team, ML programme, or quantitative research function has been confirmed for this firm, which makes this a medium-confidence opportunity; the case strengthens significantly if a data science hire or analytics investment is identified in discovery"
     },
     {

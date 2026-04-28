@@ -112,7 +112,7 @@ function AnalysisStrip({ state, onClear }) {
   const phaseLabel = {
     initializing: 'initializing analysis',
     tavily:       'searching 9 intelligence sources across strategy, infrastructure, security, AI, and enterprise systems',
-    claude1:      'building company profile and scoring propensity across 22 Microsoft products',
+    claude:       'building company profile and scoring propensity across 22 Microsoft products',
   }
 
   return (
@@ -136,7 +136,7 @@ function AnalysisStrip({ state, onClear }) {
       </span>
       <button
         onClick={onClear}
-        disabled={!state}
+        disabled={!state || isInProgress}
         className="ml-4 text-slate-400 enabled:hover:text-slate-200 disabled:text-slate-600 disabled:cursor-default shrink-0 transition-colors"
       >
         Clear
@@ -410,13 +410,13 @@ function CustomerListPage() {
   const [dateSortDir, setDateSortDir] = useState('desc')
 
   const baseRows = useMemo(() => {
-    if (!demoMode) return enriched
-    return DEMO_CUSTOMERS.map(c => ({
+    const demoRows = demoMode ? DEMO_CUSTOMERS.map(c => ({
       ...c,
       categoryStages:   computeCategoryStages(c.ownedProducts),
       analysisComplete: !!demoAnalyses[c.id],
       lastAnalyzed:     demoAnalyses[c.id]?.analyzedAt ?? null,
-    }))
+    })) : []
+    return [...demoRows, ...enriched]
   }, [demoMode, demoAnalyses, enriched])
 
   useEffect(() => {
@@ -485,10 +485,10 @@ function CustomerListPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setAnalysisState({ customerId: customer.id, phase: 'initializing' })
 
-    if (demoMode) {
+    if (DEMO_IDS.has(customer.id)) {
       phaseTimers.current = [
         setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),   800),
-        setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude1' } : s),  2500),
+        setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude' } : s),  2500),
       ]
       try {
         await analyzeDemoCustomer(customer, setDemoAnalysis)
@@ -506,7 +506,7 @@ function CustomerListPage() {
 
     phaseTimers.current = [
       setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),  1500),
-      setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude1' } : s), 13500),
+      setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude' } : s), 13500),
     ]
 
     try {
@@ -548,9 +548,9 @@ function CustomerListPage() {
 
   const sortableDateCols = useMemo(() =>
     new Set(['createdAt', 'updatedAt', 'lastAnalyzed'].filter(col =>
-      filtered.length > 1 && enriched.some(r => r[col])
+      filtered.length > 1 && baseRows.some(r => r[col])
     ))
-  , [enriched, filtered])
+  , [baseRows, filtered])
 
   // ── Table columns ─────────────────────────────────────────
   const columns = useMemo(() => [
@@ -610,21 +610,21 @@ function CustomerListPage() {
             </button>
             <button
               onClick={() => navigate(`/profile/${encodeURIComponent(c.id)}`)}
-              disabled={!c.analysisComplete || isAnalyzing}
+              disabled={!c.analysisComplete}
               className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
             >
               View Profile
             </button>
             <button
               onClick={() => setModalState({ mode: 'edit', customer: c })}
-              disabled={isAnalyzing || (demoMode && DEMO_IDS.has(c.id))}
+              disabled={DEMO_IDS.has(c.id) || (isAnalyzing && analysisState?.customerId === c.id)}
               className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors`}
             >
               Edit
             </button>
             <button
               onClick={async () => { await deleteCustomer(c.id); await loadData() }}
-              disabled={isAnalyzing || (demoMode && DEMO_IDS.has(c.id))}
+              disabled={DEMO_IDS.has(c.id) || (isAnalyzing && analysisState?.customerId === c.id)}
               className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-rose-50 text-rose-600 enabled:hover:bg-rose-100 disabled:text-rose-300 disabled:cursor-not-allowed transition-colors`}
             >
               Delete
@@ -706,7 +706,7 @@ function CustomerListPage() {
         {/* Clear */}
         <button
           onClick={handleClearKeys}
-          disabled={isAnalyzing || !keysSaved}
+          disabled={!keysSaved}
           className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors`}
         >
           Clear
@@ -786,8 +786,31 @@ function CustomerListPage() {
 const LABEL_CLS = {
   'Very High': 'bg-emerald-100 text-emerald-700',
   High:        'bg-blue-100 text-blue-700',
-  Medium:      'bg-amber-100 text-amber-700',
+  Moderate:    'bg-amber-100 text-amber-700',
   Low:         'bg-slate-100 text-slate-500',
+}
+
+const CONFIDENCE_CLS = {
+  High:   'bg-emerald-100 text-emerald-700',
+  Medium: 'bg-amber-100 text-amber-700',
+  Low:    'bg-rose-100 text-rose-700',
+}
+
+const MATURITY_CLS = {
+  High:     'bg-emerald-100 text-emerald-700',
+  Moderate: 'bg-amber-100 text-amber-700',
+  Low:      'bg-rose-100 text-rose-700',
+}
+
+function SectionHeader({ label, badge, badgeCls }) {
+  return (
+    <div className="flex items-center gap-3 mb-4">
+      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">{label}</span>
+      <span className="text-slate-300">·</span>
+      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${badgeCls || 'bg-slate-100 text-slate-500'}`}>{badge}</span>
+      <div className="flex-1 h-px bg-slate-200" />
+    </div>
+  )
 }
 
 function CompanyProfile({ profile, ownedProducts }) {
@@ -804,56 +827,65 @@ function CompanyProfile({ profile, ownedProducts }) {
   const nonMs   = techStack.filter(p => !allMsProducts.has(p))
 
   return (
-    <section className="bg-white border border-slate-200 rounded p-4">
-      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
-        <span className="text-sm font-semibold text-slate-700">Company Profile</span>
-        <span className="text-slate-300">·</span>
-        <span className="text-xs text-slate-500">Data confidence: {profile.dataConfidence}</span>
-        <span className="text-slate-300">·</span>
-        <span className="text-xs text-slate-500">IT maturity: {profile.itMaturityLevel}</span>
+    <div className="space-y-4">
+
+      <div className="bg-white border border-slate-200 rounded p-4">
+        <SectionHeader
+          label="Data confidence"
+          badge={profile.dataConfidence}
+          badgeCls={CONFIDENCE_CLS[profile.dataConfidence]}
+        />
+        <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary}</p>
       </div>
-      <p className="text-sm text-slate-600 leading-relaxed text-justify mb-4">{profile.summary}</p>
-      <div className="border-t border-slate-100 pt-4 space-y-3">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Technology stack</p>
-        {msOwned.length > 0 && (
-          <div>
-            <p className="text-xs text-slate-400 mb-1.5">Microsoft products — marked by user</p>
-            <div className="flex flex-wrap gap-1">
-              {msOwned.map(p => {
-                const cat = productCat[p]
-                const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
-                return <span key={p} className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{p}</span>
-              })}
-            </div>
-          </div>
-        )}
-        {msFound.length > 0 && (
-          <div>
-            <p className="text-xs text-slate-400 mb-1.5">Microsoft products — found by research</p>
-            <div className="flex flex-wrap gap-1">
-              {msFound.map(p => (
-                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
+
+      <div className="bg-white border border-slate-200 rounded p-4">
+        <SectionHeader
+          label="IT maturity"
+          badge={profile.itMaturityLevel}
+          badgeCls={MATURITY_CLS[profile.itMaturityLevel]}
+        />
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+          {msOwned.map((p, i) => {
+            const cat = productCat[p]
+            const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
+            return (
+              <span key={p} className="flex items-center gap-1">
+                {i > 0 && <span className="text-slate-300 text-xs">·</span>}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{p}</span>
+              </span>
+            )
+          })}
+          {msFound.length > 0 && (
+            <>
+              {msOwned.length > 0 && <span className="text-slate-300 text-xs">·</span>}
+              {msFound.map((p, i) => (
+                <span key={p} className="flex items-center gap-1">
+                  {i > 0 && <span className="text-slate-300 text-xs">·</span>}
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
+                </span>
               ))}
-            </div>
-          </div>
-        )}
-        {nonMs.length > 0 && (
-          <div>
-            <p className="text-xs text-slate-400 mb-1.5">Non-Microsoft products</p>
-            <div className="flex flex-wrap gap-1">
-              {nonMs.map(p => (
-                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
+            </>
+          )}
+          {nonMs.length > 0 && (
+            <>
+              {(msOwned.length > 0 || msFound.length > 0) && <span className="text-slate-300 text-xs">·</span>}
+              {nonMs.map((p, i) => (
+                <span key={p} className="flex items-center gap-1">
+                  {i > 0 && <span className="text-slate-300 text-xs">·</span>}
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-400">{p}</span>
+                </span>
               ))}
-            </div>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
-    </section>
+
+    </div>
   )
 }
 
 function PropensityPipeline({ scores }) {
-  const LEVEL_ORDER = ['Very High', 'High', 'Medium', 'Low']
+  const LEVEL_ORDER = ['Very High', 'High', 'Moderate', 'Low']
   const catalogueOrder = Object.values(PRODUCTS_BY_CATEGORY).flat()
 
   const grouped = useMemo(() => {
@@ -873,10 +905,7 @@ function PropensityPipeline({ scores }) {
       <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Propensity pipeline</h2>
       {activeLevels.map(level => (
         <div key={level} className="mb-6">
-          <div className="flex items-center gap-3 mb-3">
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${LABEL_CLS[level]}`}>{level}</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
+          <SectionHeader label="Propensity pipeline" badge={level} badgeCls={LABEL_CLS[level]} />
           <div className="space-y-3">
             {grouped[level].map(ps => {
               const cc = CATEGORY_CLASSES[ps.category] || { bg: 'bg-slate-100', text: 'text-slate-500' }
@@ -902,7 +931,6 @@ function CustomerDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const demoMode        = useStore(s => s.demoMode)
   const demoAnalyses    = useStore(s => s.demoAnalyses)
   const setAnalysisState = useStore(s => s.setAnalysisState)
 
@@ -912,7 +940,7 @@ function CustomerDetailPage() {
 
   const loadData = useCallback(async () => {
     try {
-      if (demoMode) {
+      if (DEMO_IDS.has(id)) {
         const dc = DEMO_CUSTOMERS.find(d => d.id === id)
         if (!dc) {
           setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — customer not found, try again` })
@@ -949,7 +977,7 @@ function CustomerDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [id, demoMode, demoAnalyses, navigate, setAnalysisState])
+  }, [id, demoAnalyses, navigate, setAnalysisState])
 
   useEffect(() => { loadData() }, [loadData])
 

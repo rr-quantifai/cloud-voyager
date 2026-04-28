@@ -81,15 +81,15 @@ export const DEMO_CUSTOMERS = [
     id: '000',
     name: 'Success Corporation LLC',
     ownedProducts: ['Microsoft 365 E3/E5', 'Microsoft Teams', 'Azure Virtual Machines', 'Microsoft Entra ID'],
-    createdAt: '2025-01-15T08:00:00.000Z',
-    updatedAt: '2025-01-15T08:00:00.000Z',
+    createdAt: '2100-12-31T12:00:00.000Z',
+    updatedAt: '2100-12-31T12:00:00.000Z',
   },
   {
     id: 'AAA',
     name: 'Failure Company EST',
     ownedProducts: [],
-    createdAt: '2025-01-15T08:00:00.000Z',
-    updatedAt: '2025-01-15T08:00:00.000Z',
+    createdAt: '2100-12-31T12:00:00.000Z',
+    updatedAt: '2100-12-31T12:00:00.000Z',
   },
 ]
 

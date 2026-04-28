@@ -188,7 +188,7 @@ If customer owns Microsoft Entra ID → High propensity for: Microsoft Defender 
 function labelFromScore(score) {
   if (score >= 76) return 'Very High';
   if (score >= 56) return 'High';
-  if (score >= 31) return 'Medium';
+  if (score >= 31) return 'Moderate';
   return 'Low';
 }
 
@@ -480,6 +480,7 @@ Signals array: populate with each key claim, its source, and confidence:
 
 Do not end any text field with a full stop.
 Use sentence case for all text fields — proper nouns, product names, company names, regulations, and acronyms are the only exceptions.
+itMaturityLevel must be exactly one of: High, Moderate, Low.
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
@@ -495,6 +496,8 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
   "productScores": [
     { "product": "", "category": "", "score": 0, "label": "", "rationale": "" }
   ]
+
+Return productScores sorted descending by score. label must be exactly one of: Very High, High, Moderate, Low.
 }
 
 Return productScores sorted descending by score.
