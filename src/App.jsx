@@ -49,7 +49,7 @@ const useStore = create((set) => ({
   setTotalCustomers: (totalCustomers) => set({ totalCustomers }),
   setDemoMode:       (demoMode) => set({ demoMode }),
   setDemoAnalysis:   (customerId, analysis) => set(s => ({ demoAnalyses: { ...s.demoAnalyses, [customerId]: analysis } })),
-  setAnalysisState:  (analysisState) => set({ analysisState }),
+  setAnalysisState:  (fn) => set(s => ({ analysisState: typeof fn === 'function' ? fn(s.analysisState) : fn })),
 }))
 
 // ============================================================
@@ -75,7 +75,7 @@ function formatGST(iso) {
 
 function CategoryStagesFull({ categoryStages }) {
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex gap-1">
       {CATEGORIES.map(cat => {
         const stage = categoryStages?.[cat] ?? 'Not Started'
         const isNS  = stage === 'Not Started'
@@ -138,7 +138,7 @@ function AnalysisStrip({ state, onClear }) {
       <button
         onClick={onClear}
         disabled={!state}
-        className="ml-4 text-slate-500 enabled:hover:text-slate-300 disabled:cursor-default shrink-0 transition-colors"
+        className="ml-4 text-slate-400 enabled:hover:text-slate-200 disabled:text-slate-600 disabled:cursor-default shrink-0 transition-colors"
       >
         Clear
       </button>
@@ -628,7 +628,7 @@ function CustomerListPage() {
             <button
               onClick={async () => { await deleteCustomer(c.id); await loadData() }}
               disabled={isAnalyzing || (demoMode && DEMO_IDS.has(c.id))}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-rose-50 text-rose-600 enabled:hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-rose-50 text-rose-600 enabled:hover:bg-rose-100 disabled:text-rose-300 disabled:cursor-not-allowed transition-colors`}
             >
               Delete
             </button>
@@ -733,7 +733,7 @@ function CustomerListPage() {
         </div>
       ) : (
         <div className="border border-slate-200 rounded-lg overflow-x-auto bg-white">
-          <table className="w-full text-left whitespace-nowrap">
+          <table className="w-full text-left whitespace-nowrap" style={{ minWidth: '1000px' }}>
             <thead className="bg-slate-50 border-b border-slate-200">
               {table.getHeaderGroups().map(hg => (
                 <tr key={hg.id}>
@@ -1372,7 +1372,7 @@ function NavBar() {
             <button
               onClick={() => setDemoMode(false)}
               className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
-                !demoMode ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                !demoMode ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               Live
@@ -1380,7 +1380,7 @@ function NavBar() {
             <button
               onClick={() => setDemoMode(true)}
               className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
-                demoMode ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                demoMode ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
               }`}
             >
               Demo
