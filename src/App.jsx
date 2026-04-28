@@ -806,17 +806,6 @@ const MATURITY_CLS = {
   Low:      'bg-rose-100 text-rose-700',
 }
 
-function SectionHeader({ label, badge, badgeCls }) {
-  return (
-    <div className="flex items-center gap-3 mb-4">
-      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">{label}</span>
-      <span className="text-slate-300">·</span>
-      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${badgeCls || 'bg-slate-100 text-slate-500'}`}>{badge}</span>
-      <div className="flex-1 h-px bg-slate-200" />
-    </div>
-  )
-}
-
 function CompanyProfile({ profile, ownedProducts }) {
 
   const techStack = profile.currentTechStack || []
@@ -827,49 +816,53 @@ function CompanyProfile({ profile, ownedProducts }) {
   return (
     <div className="space-y-4">
 
-      <div>
-        <SectionHeader
-          label="Data confidence"
-          badge={profile.dataConfidence}
-          badgeCls={CONFIDENCE_CLS[profile.dataConfidence]}
-        />
-        <div className="bg-white border border-slate-200 rounded p-4">
-          <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary}</p>
+      {/* Data Confidence table */}
+      <div className="bg-white border border-slate-200 rounded">
+        <div className="flex items-center gap-3 px-4 py-4">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Data confidence</span>
+          <span className="text-slate-300">·</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${CONFIDENCE_CLS[profile.dataConfidence] || 'bg-slate-100 text-slate-500'}`}>{profile.dataConfidence}</span>
+        </div>
+        <div className="px-4 py-4 border-t border-slate-200">
+          <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary || '—'}</p>
         </div>
       </div>
 
-      <div>
-        <SectionHeader
-          label="IT maturity"
-          badge={profile.itMaturityLevel}
-          badgeCls={MATURITY_CLS[profile.itMaturityLevel]}
-        />
-        <div className="bg-white border border-slate-200 rounded p-4">
-          <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-            {msOwned.map(p => {
-              const cat = PRODUCT_CATEGORY[p]
-              const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
-              return (
-                <span key={p} className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{p}</span>
-              )
-            })}
-            {msFound.length > 0 && (
-              <>
-                {msOwned.length > 0 && <span className="text-slate-300 text-xs">·</span>}
-                {msFound.map(p => (
-                  <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
-                ))}
-              </>
-            )}
-            {nonMs.length > 0 && (
-              <>
-                {(msOwned.length > 0 || msFound.length > 0) && <span className="text-slate-300 text-xs">·</span>}
-                {nonMs.map(p => (
-                  <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-400">{p}</span>
-                ))}
-              </>
-            )}
-          </div>
+      {/* IT Maturity table */}
+      <div className="bg-white border border-slate-200 rounded">
+        <div className="flex items-center gap-3 px-4 py-4">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">IT maturity</span>
+          <span className="text-slate-300">·</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${MATURITY_CLS[profile.itMaturityLevel] || 'bg-slate-100 text-slate-500'}`}>{profile.itMaturityLevel}</span>
+        </div>
+        <div className="flex items-start gap-3 px-4 py-4 border-t border-slate-200">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 whitespace-nowrap pt-0.5">Products owned</span>
+          <span className="text-slate-300 shrink-0">·</span>
+          {msOwned.length > 0
+            ? <div className="flex flex-wrap gap-1">{msOwned.map(p => {
+                const cat = PRODUCT_CATEGORY[p]
+                const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
+                return <span key={p} className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{p}</span>
+              })}</div>
+            : <span className="text-sm text-slate-400">—</span>}
+        </div>
+        <div className="flex items-start gap-3 px-4 py-4 border-t border-slate-200">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 whitespace-nowrap pt-0.5">Other Microsoft products</span>
+          <span className="text-slate-300 shrink-0">·</span>
+          {msFound.length > 0
+            ? <div className="flex flex-wrap gap-1">{msFound.map(p => (
+                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
+              ))}</div>
+            : <span className="text-sm text-slate-400">—</span>}
+        </div>
+        <div className="flex items-start gap-3 px-4 py-4 border-t border-slate-200">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 whitespace-nowrap pt-0.5">Non-Microsoft products</span>
+          <span className="text-slate-300 shrink-0">·</span>
+          {nonMs.length > 0
+            ? <div className="flex flex-wrap gap-1">{nonMs.map(p => (
+                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-400">{p}</span>
+              ))}</div>
+            : <span className="text-sm text-slate-400">—</span>}
         </div>
       </div>
 
@@ -893,28 +886,30 @@ function PropensityPipeline({ scores }) {
   if (!activeLevels.length) return null
 
   return (
-    <section>
+    <div className="space-y-4">
       {activeLevels.map(level => (
-        <div key={level} className="mb-6">
-          <SectionHeader label="Propensity pipeline" badge={level} badgeCls={LABEL_CLS[level]} />
-          <div className="space-y-3">
-            {grouped[level].map(ps => {
-              const cc = CATEGORY_CLASSES[ps.category] || { bg: 'bg-slate-100', text: 'text-slate-500' }
-              return (
-                <div key={ps.product} className="bg-white border border-slate-200 rounded p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium text-slate-700">{ps.product}</span>
-                    <span className="text-slate-300">·</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cc.bg} ${cc.text}`}>{ps.category}</span>
-                  </div>
-                  <p className="text-sm text-slate-500 leading-relaxed text-justify">{ps.rationale}</p>
-                </div>
-              )
-            })}
+        <div key={level} className="bg-white border border-slate-200 rounded">
+          <div className="flex items-center gap-3 px-4 py-4">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Propensity pipeline</span>
+            <span className="text-slate-300">·</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${LABEL_CLS[level]}`}>{level}</span>
           </div>
+          {grouped[level].map(ps => {
+            const cc = CATEGORY_CLASSES[ps.category] || { bg: 'bg-slate-100', text: 'text-slate-500' }
+            return (
+              <div key={ps.product} className="px-4 py-4 border-t border-slate-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-medium text-slate-700">{ps.product}</span>
+                  <span className="text-slate-300">·</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cc.bg} ${cc.text}`}>{ps.category}</span>
+                </div>
+                <p className="text-sm text-slate-500 leading-relaxed text-justify">{ps.rationale || '—'}</p>
+              </div>
+            )
+          })}
         </div>
       ))}
-    </section>
+    </div>
   )
 }
 
@@ -1000,7 +995,7 @@ function CustomerDetailPage() {
           </button>
         </div>
       </div>
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-4">
         <CompanyProfile profile={analysis.companyProfile} ownedProducts={owned} />
         <PropensityPipeline scores={unownedScores} />
       </div>
