@@ -791,7 +791,7 @@ const LABEL_CLS = {
   'Very High': 'bg-emerald-100 text-emerald-700',
   High:        'bg-blue-100 text-blue-700',
   Moderate:    'bg-amber-100 text-amber-700',
-  Low:         'bg-slate-100 text-slate-500',
+  Low:         'bg-rose-100 text-rose-700',
 }
 
 const CONFIDENCE_CLS = {
@@ -827,54 +827,49 @@ function CompanyProfile({ profile, ownedProducts }) {
   return (
     <div className="space-y-4">
 
-      <div className="bg-white border border-slate-200 rounded p-4">
+      <div>
         <SectionHeader
           label="Data confidence"
           badge={profile.dataConfidence}
           badgeCls={CONFIDENCE_CLS[profile.dataConfidence]}
         />
-        <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary}</p>
+        <div className="bg-white border border-slate-200 rounded p-4">
+          <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary}</p>
+        </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded p-4">
+      <div>
         <SectionHeader
           label="IT maturity"
           badge={profile.itMaturityLevel}
           badgeCls={MATURITY_CLS[profile.itMaturityLevel]}
         />
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-          {msOwned.map((p, i) => {
-            const cat = PRODUCT_CATEGORY[p]
-            const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
-            return (
-              <span key={p} className="flex items-center gap-1">
-                {i > 0 && <span className="text-slate-300 text-xs">·</span>}
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{p}</span>
-              </span>
-            )
-          })}
-          {msFound.length > 0 && (
-            <>
-              {msOwned.length > 0 && <span className="text-slate-300 text-xs">·</span>}
-              {msFound.map((p, i) => (
-                <span key={p} className="flex items-center gap-1">
-                  {i > 0 && <span className="text-slate-300 text-xs">·</span>}
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
-                </span>
-              ))}
-            </>
-          )}
-          {nonMs.length > 0 && (
-            <>
-              {(msOwned.length > 0 || msFound.length > 0) && <span className="text-slate-300 text-xs">·</span>}
-              {nonMs.map((p, i) => (
-                <span key={p} className="flex items-center gap-1">
-                  {i > 0 && <span className="text-slate-300 text-xs">·</span>}
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-400">{p}</span>
-                </span>
-              ))}
-            </>
-          )}
+        <div className="bg-white border border-slate-200 rounded p-4">
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
+            {msOwned.map(p => {
+              const cat = PRODUCT_CATEGORY[p]
+              const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
+              return (
+                <span key={p} className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{p}</span>
+              )
+            })}
+            {msFound.length > 0 && (
+              <>
+                {msOwned.length > 0 && <span className="text-slate-300 text-xs">·</span>}
+                {msFound.map(p => (
+                  <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
+                ))}
+              </>
+            )}
+            {nonMs.length > 0 && (
+              <>
+                {(msOwned.length > 0 || msFound.length > 0) && <span className="text-slate-300 text-xs">·</span>}
+                {nonMs.map(p => (
+                  <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-400">{p}</span>
+                ))}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1126,10 +1121,19 @@ async function analyzeCustomer(customer) {
 // ============================================================
 
 function NavBar() {
+  const totalCustomers = useStore(s => s.totalCustomers)
+  const demoMode       = useStore(s => s.demoMode)
+  const setDemoMode    = useStore(s => s.setDemoMode)
+
   const [model, setModelState] = useState('sonnet')
+  const [settingsReady, setSettingsReady] = useState(false)
 
   useEffect(() => {
-    getSettings().then(s => setModelState(s.model ?? 'sonnet'))
+    getSettings().then(s => {
+      setModelState(s.model ?? 'sonnet')
+      if (s.demoMode) setDemoMode(true)
+      setSettingsReady(true)
+    })
   }, [])
 
   async function handleModelChange(next) {
@@ -1138,12 +1142,13 @@ function NavBar() {
     await saveSettings({ ...s, model: next })
   }
 
-  const totalCustomers = useStore(s => s.totalCustomers)
-  const demoMode       = useStore(s => s.demoMode)
-  const setDemoMode    = useStore(s => s.setDemoMode)
-
   async function handleClearAll() {
+    const preserveDemo = demoMode
     await clearAllData()
+    if (preserveDemo) {
+      const s = await getSettings()
+      await saveSettings({ ...s, demoMode: true })
+    }
     window.location.reload()
   }
 
@@ -1163,10 +1168,10 @@ function NavBar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className={`flex items-center gap-3 transition-opacity duration-150 ${settingsReady ? 'opacity-100' : 'opacity-0'}`}>
           <div className="flex items-center bg-slate-100 rounded-full p-0.5">
             <button
-              onClick={() => setDemoMode(false)}
+              onClick={async () => { setDemoMode(false); const s = await getSettings(); await saveSettings({ ...s, demoMode: false }) }}
               className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
                 !demoMode ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
               }`}
@@ -1174,7 +1179,7 @@ function NavBar() {
               Live
             </button>
             <button
-              onClick={() => setDemoMode(true)}
+              onClick={async () => { setDemoMode(true); const s = await getSettings(); await saveSettings({ ...s, demoMode: true }) }}
               className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
                 demoMode ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
               }`}
