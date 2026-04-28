@@ -194,7 +194,7 @@ function labelFromScore(score) {
 
 /** Resolve the setting string to the exact Anthropic model identifier. */
 function resolveModelId(model) {
-  return model === 'opus' ? 'claude-opus-4-7' : 'claude-sonnet-4-6';
+  return model === 'opus' ? 'claude-opus-4-6' : 'claude-sonnet-4-6';
 }
 
 /**
@@ -497,7 +497,7 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
     { "product": "", "category": "", "score": 0, "label": "", "rationale": "" }
   ]
 
-Return productScores sorted descending by score. label must be exactly one of: Very High, High, Moderate, Low.
+label must be exactly one of: Very High, High, Moderate, Low.
 }
 
 Return productScores sorted descending by score.

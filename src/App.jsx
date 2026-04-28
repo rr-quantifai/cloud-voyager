@@ -30,6 +30,7 @@ import {
   putCustomer,
   deleteCustomer,
   getLatestAnalysis,
+  getLatestAnalysisForAll,
   putAnalysis,
   deleteAnalysesForCustomer,
   getSettings,
@@ -393,12 +394,11 @@ function CustomerListPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     const customers = await getAllCustomers()
-    const rows = await Promise.all(
-      customers.map(async c => {
-        const analysis = await getLatestAnalysis(c.id)
-        return { ...c, lastAnalyzed: analysis?.analyzedAt ?? null }
-      })
-    )
+    const analysisMap = await getLatestAnalysisForAll()
+    const rows = customers.map(c => ({
+      ...c,
+      lastAnalyzed: analysisMap.get(c.id)?.analyzedAt ?? null,
+    }))
     setEnriched(rows)
     setTotalCustomers(rows.length)
     setLoading(false)
@@ -521,7 +521,7 @@ function CustomerListPage() {
         : `${customer.id}: Something went wrong — try again`
       setAnalysisState({ customerId: customer.id, phase: 'error', errorMessage })
     }
-  }, [loadData, demoMode, setDemoAnalysis])
+  }, [loadData, setDemoAnalysis])
 
   // ── Search + filter ───────────────────────────────────────
   const fuse = useMemo(
@@ -783,6 +783,10 @@ function CustomerListPage() {
 // SECTION 3 — CUSTOMER DETAIL PAGE
 // ============================================================
 
+const ALL_MS_PRODUCTS = new Set(Object.values(PRODUCTS_BY_CATEGORY).flat())
+const PRODUCT_CATEGORY = Object.fromEntries(Object.entries(PRODUCTS_BY_CATEGORY).flatMap(([cat, prods]) => prods.map(p => [p, cat])))
+const CATALOGUE_ORDER = Object.values(PRODUCTS_BY_CATEGORY).flat()
+
 const LABEL_CLS = {
   'Very High': 'bg-emerald-100 text-emerald-700',
   High:        'bg-blue-100 text-blue-700',
@@ -814,17 +818,11 @@ function SectionHeader({ label, badge, badgeCls }) {
 }
 
 function CompanyProfile({ profile, ownedProducts }) {
-  const allMsProducts = new Set(Object.values(PRODUCTS_BY_CATEGORY).flat())
-
-  const productCat = {}
-  for (const [cat, prods] of Object.entries(PRODUCTS_BY_CATEGORY)) {
-    for (const p of prods) productCat[p] = cat
-  }
 
   const techStack = profile.currentTechStack || []
-  const msOwned = ownedProducts.filter(p => allMsProducts.has(p))
-  const msFound = techStack.filter(p => allMsProducts.has(p) && !ownedProducts.includes(p))
-  const nonMs   = techStack.filter(p => !allMsProducts.has(p))
+  const msOwned = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
+  const msFound = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
+  const nonMs   = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
 
   return (
     <div className="space-y-4">
@@ -846,7 +844,7 @@ function CompanyProfile({ profile, ownedProducts }) {
         />
         <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
           {msOwned.map((p, i) => {
-            const cat = productCat[p]
+            const cat = PRODUCT_CATEGORY[p]
             const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
             return (
               <span key={p} className="flex items-center gap-1">
@@ -886,13 +884,12 @@ function CompanyProfile({ profile, ownedProducts }) {
 
 function PropensityPipeline({ scores }) {
   const LEVEL_ORDER = ['Very High', 'High', 'Moderate', 'Low']
-  const catalogueOrder = Object.values(PRODUCTS_BY_CATEGORY).flat()
 
   const grouped = useMemo(() => {
-    const map = { 'Very High': [], High: [], Medium: [], Low: [] }
+    const map = { 'Very High': [], High: [], Moderate: [], Low: [] }
     for (const ps of scores) { if (map[ps.label]) map[ps.label].push(ps) }
     for (const level of LEVEL_ORDER) {
-      map[level].sort((a, b) => catalogueOrder.indexOf(a.product) - catalogueOrder.indexOf(b.product))
+      map[level].sort((a, b) => CATALOGUE_ORDER.indexOf(a.product) - CATALOGUE_ORDER.indexOf(b.product))
     }
     return map
   }, [scores])
@@ -902,7 +899,6 @@ function PropensityPipeline({ scores }) {
 
   return (
     <section>
-      <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Propensity pipeline</h2>
       {activeLevels.map(level => (
         <div key={level} className="mb-6">
           <SectionHeader label="Propensity pipeline" badge={level} badgeCls={LABEL_CLS[level]} />

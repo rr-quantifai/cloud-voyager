@@ -102,6 +102,24 @@ export async function putCustomer(customer) {
 // ─── Analysis Operations ──────────────────────────────────────────────────────
 
 /**
+ * Returns the most recent analysis for every customer in one pass.
+ * Returns a Map of customerId → analysis record (or undefined).
+ * @returns {Promise<Map<string, object>>}
+ */
+export async function getLatestAnalysisForAll() {
+  const db = await getDB()
+  const all = await db.getAll(STORES.ANALYSES)
+  const map = new Map()
+  for (const a of all) {
+    const prev = map.get(a.customerId)
+    if (!prev || new Date(a.analyzedAt) > new Date(prev.analyzedAt)) {
+      map.set(a.customerId, a)
+    }
+  }
+  return map
+}
+
+/**
  * Returns the most recent analysis for a given customer (by analyzedAt),
  * or undefined if none exists.
  * @param {string} customerId
