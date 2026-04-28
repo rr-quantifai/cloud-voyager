@@ -77,17 +77,17 @@ export async function createCustomer({ id, name, ownedProducts = [] }) {
   return record
 }
 
+export async function deleteCustomer(id) {
+  const db = await getDB()
+  await db.delete(STORES.CUSTOMERS, id)
+}
+
 /**
  * Writes a full customer record (insert or overwrite).
  * Always recomputes categoryStages and bumps updatedAt.
  * @param {object} customer — must include id
  * @returns {Promise<object>} the stored record
  */
-export async function deleteCustomer(id) {
-  const db = await getDB()
-  await db.delete(STORES.CUSTOMERS, id)
-}
-
 export async function putCustomer(customer) {
   const db = await getDB()
   const record = {

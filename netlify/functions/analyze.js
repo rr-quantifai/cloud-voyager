@@ -701,8 +701,8 @@ exports.handler = async (event) => {
     const errMessages = {
       ANTHROPIC_AUTH_ERROR:       'Something went wrong — incorrect Anthropic API details, input correct details and try again',
       ANTHROPIC_PAYMENT_ERROR:    'Something went wrong — check your Anthropic account and try again',
-      ANTHROPIC_RATE_LIMIT_ERROR: 'Something went wrong — Anthropic rate limit exceeded, try again later',
-      ANTHROPIC_SERVER_ERROR:     'Something went wrong — Anthropic service error, try again later',
+      ANTHROPIC_RATE_LIMIT_ERROR: 'Something went wrong — Anthropic rate limit exceeded, try again',
+      ANTHROPIC_SERVER_ERROR:     'Something went wrong — Anthropic service error, try again',
       TAVILY_AUTH_ERROR:          'Something went wrong — incorrect Tavily API details, input correct details and try again',
       TAVILY_ERROR:               'Something went wrong — check your Tavily account and try again',
     };

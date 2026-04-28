@@ -76,6 +76,25 @@ export function computeCategoryStages(ownedProducts) {
 
 export const BUTTON_H = 'h-9'
 
+export const DEMO_CUSTOMERS = [
+  {
+    id: '000',
+    name: 'Success Corporation LLC',
+    ownedProducts: ['Microsoft 365 E3/E5', 'Microsoft Teams', 'Azure Virtual Machines', 'Microsoft Entra ID'],
+    createdAt: '2025-01-15T08:00:00.000Z',
+    updatedAt: '2025-01-15T08:00:00.000Z',
+  },
+  {
+    id: 'AAA',
+    name: 'Failure Company EST',
+    ownedProducts: [],
+    createdAt: '2025-01-15T08:00:00.000Z',
+    updatedAt: '2025-01-15T08:00:00.000Z',
+  },
+]
+
+export const DEMO_IDS = new Set(['000', 'AAA'])
+
 // ─── IndexedDB Store Names ────────────────────────────────────────────────────
 
 export const DB_NAME    = 'cloud-voyager'

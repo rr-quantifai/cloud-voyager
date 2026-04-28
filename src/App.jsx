@@ -19,6 +19,8 @@ import {
   CATEGORY_CLASSES,
   computeCategoryStages,
   BUTTON_H,
+  DEMO_CUSTOMERS,
+  DEMO_IDS,
 } from './constants.js'
 
 import {
@@ -40,8 +42,14 @@ import {
 const useStore = create((set) => ({
   searchQuery:       '',
   totalCustomers:    0,
+  demoMode:          false,
+  demoAnalyses:      {},
+  analysisState:     null,
   setSearchQuery:    (searchQuery) => set({ searchQuery }),
   setTotalCustomers: (totalCustomers) => set({ totalCustomers }),
+  setDemoMode:       (demoMode) => set({ demoMode }),
+  setDemoAnalysis:   (customerId, analysis) => set(s => ({ demoAnalyses: { ...s.demoAnalyses, [customerId]: analysis } })),
+  setAnalysisState:  (analysisState) => set({ analysisState }),
 }))
 
 // ============================================================
@@ -371,6 +379,11 @@ function CustomerListPage() {
   const searchQuery       = useStore(s => s.searchQuery)
   const setSearchQuery    = useStore(s => s.setSearchQuery)
   const setTotalCustomers = useStore(s => s.setTotalCustomers)
+  const demoMode          = useStore(s => s.demoMode)
+  const demoAnalyses      = useStore(s => s.demoAnalyses)
+  const setDemoAnalysis   = useStore(s => s.setDemoAnalysis)
+  const analysisState     = useStore(s => s.analysisState)
+  const setAnalysisState  = useStore(s => s.setAnalysisState)
 
   const navigate = useNavigate()
 
@@ -393,6 +406,26 @@ function CustomerListPage() {
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
+
+  const [dateSortCol, setDateSortCol] = useState(null)
+  const [dateSortDir, setDateSortDir] = useState('desc')
+
+  const baseRows = useMemo(() => {
+    if (!demoMode) return enriched
+    return DEMO_CUSTOMERS.map(c => ({
+      ...c,
+      categoryStages:   computeCategoryStages(c.ownedProducts),
+      analysisComplete: !!demoAnalyses[c.id],
+      lastAnalyzed:     demoAnalyses[c.id]?.analyzedAt ?? null,
+    }))
+  }, [demoMode, demoAnalyses, enriched])
+
+  useEffect(() => {
+    setAnalysisState(null)
+    setSearchQuery('')
+    setDateSortCol(null)
+    setDateSortDir('desc')
+  }, [demoMode])
 
   // ── API keys ──────────────────────────────────────────────
 
@@ -427,7 +460,6 @@ function CustomerListPage() {
   const [modalState, setModalState] = useState(null) // null | {mode:'create'} | {mode:'edit', customer}
 
   // ── Analysis ──────────────────────────────────────────────
-  const [analysisState, setAnalysisState] = useState(null) // {customerId, phase}
   const phaseTimers = useRef([])
 
   useEffect(() => () => { phaseTimers.current.forEach(clearTimeout) }, [])
@@ -436,13 +468,6 @@ function CustomerListPage() {
     () => !!analysisState && !['complete', 'error'].includes(analysisState.phase),
     [analysisState]
   )
-
-  const [dateSortCol, setDateSortCol] = useState(null)
-  const [dateSortDir, setDateSortDir] = useState('desc')
-
-  const sortableDateCols = useMemo(() =>
-    new Set(['createdAt', 'updatedAt', 'lastAnalyzed'].filter(col => enriched.some(r => r[col])))
-  , [enriched])
 
   function cycleDateSort(col) {
     if (col === 'createdAt') {
@@ -460,6 +485,26 @@ function CustomerListPage() {
 
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setAnalysisState({ customerId: customer.id, phase: 'initializing' })
+
+    if (demoMode) {
+      phaseTimers.current = [
+        setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),   800),
+        setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude1' } : s),  2500),
+        setTimeout(() => setAnalysisState(s => s?.phase === 'claude1'      ? { ...s, phase: 'claude2' } : s),  4500),
+      ]
+      try {
+        await analyzeDemoCustomer(customer, setDemoAnalysis)
+        phaseTimers.current.forEach(clearTimeout)
+        setAnalysisState({ customerId: customer.id, phase: 'complete' })
+      } catch (err) {
+        phaseTimers.current.forEach(clearTimeout)
+        const errorMessage = err.message
+          ? `${customer.id}: ${err.message}`
+          : `${customer.id}: Something went wrong — try again`
+        setAnalysisState({ customerId: customer.id, phase: 'error', errorMessage })
+      }
+      return
+    }
 
     phaseTimers.current = [
       setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),  1500),
@@ -479,21 +524,21 @@ function CustomerListPage() {
         : `${customer.id}: Something went wrong — try again`
       setAnalysisState({ customerId: customer.id, phase: 'error', errorMessage })
     }
-  }, [loadData])
+  }, [loadData, demoMode, setDemoAnalysis])
 
   // ── Search + filter ───────────────────────────────────────
   const fuse = useMemo(
-    () => new Fuse(enriched, { keys: ['name'], threshold: 0.35, includeScore: true }),
-    [enriched]
+    () => new Fuse(baseRows, { keys: ['name'], threshold: 0.35, includeScore: true }),
+    [baseRows]
   )
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim()
-    if (!q) return enriched
-    const byId = enriched.filter(c => c.id.toLowerCase() === q.toLowerCase())
+    if (!q) return baseRows
+    const byId = baseRows.filter(c => c.id.toLowerCase() === q.toLowerCase())
     if (byId.length) return byId
     return fuse.search(q).map(r => r.item)
-  }, [searchQuery, enriched, fuse])
+  }, [searchQuery, baseRows, fuse])
 
   const sortedFiltered = useMemo(() => {
     if (!dateSortCol) return filtered
@@ -503,6 +548,12 @@ function CustomerListPage() {
       return dateSortDir === 'desc' ? bv - av : av - bv
     })
   }, [filtered, dateSortCol, dateSortDir])
+
+  const sortableDateCols = useMemo(() =>
+    new Set(['createdAt', 'updatedAt', 'lastAnalyzed'].filter(col =>
+      filtered.length > 1 && enriched.some(r => r[col])
+    ))
+  , [enriched, filtered])
 
   // ── Table columns ─────────────────────────────────────────
   const columns = useMemo(() => [
@@ -561,7 +612,7 @@ function CustomerListPage() {
               Analyze
             </button>
             <button
-              onClick={() => navigate(`/customer/${encodeURIComponent(c.id)}`)}
+              onClick={() => navigate(`/profile/${encodeURIComponent(c.id)}`)}
               disabled={!c.analysisComplete || isAnalyzing}
               className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
             >
@@ -569,14 +620,14 @@ function CustomerListPage() {
             </button>
             <button
               onClick={() => setModalState({ mode: 'edit', customer: c })}
-              disabled={isAnalyzing}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:cursor-not-allowed transition-colors`}
+              disabled={isAnalyzing || (demoMode && DEMO_IDS.has(c.id))}
+              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors`}
             >
               Edit
             </button>
             <button
               onClick={async () => { await deleteCustomer(c.id); await loadData() }}
-              disabled={isAnalyzing}
+              disabled={isAnalyzing || (demoMode && DEMO_IDS.has(c.id))}
               className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-rose-50 text-rose-600 enabled:hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
             >
               Delete
@@ -611,7 +662,7 @@ function CustomerListPage() {
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="Search by ID or name..."
-          disabled={enriched.length === 0}
+          disabled={baseRows.length === 0}
           className="flex-1 h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
         />
 
@@ -659,7 +710,7 @@ function CustomerListPage() {
         <button
           onClick={handleClearKeys}
           disabled={isAnalyzing || !keysSaved}
-          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:cursor-not-allowed transition-colors`}
+          className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors`}
         >
           Clear
         </button>
@@ -1039,62 +1090,72 @@ function CustomerDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const [customer,        setCustomer]        = useState(null)
-  const [analysis,        setAnalysis]        = useState(null)
-  const [loading,         setLoading]         = useState(true)
-  const [analyzing,       setAnalyzing]       = useState(false)
-  const [reanalyzePrompt, setReanalyzePrompt] = useState(false)
-  const [pageError,       setPageError]       = useState(null)
+  const demoMode        = useStore(s => s.demoMode)
+  const demoAnalyses    = useStore(s => s.demoAnalyses)
+  const setAnalysisState = useStore(s => s.setAnalysisState)
+
+  const [customer, setCustomer] = useState(null)
+  const [analysis, setAnalysis] = useState(null)
+  const [loading,  setLoading]  = useState(true)
 
   const loadData = useCallback(async () => {
     try {
-      const c = await getCustomer(id)
-      if (!c) { setPageError('Customer not found'); setLoading(false); return }
-      setCustomer(c)
-      if (c.analysisComplete) {
+      if (demoMode) {
+        const dc = DEMO_CUSTOMERS.find(d => d.id === id)
+        if (!dc) {
+          setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — customer not found, try again` })
+          navigate('/')
+          return
+        }
+        const a = demoAnalyses[id] || null
+        if (!a) {
+          setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — profile not found, analyze and try again` })
+          navigate('/')
+          return
+        }
+        setCustomer({ ...dc, categoryStages: computeCategoryStages(dc.ownedProducts), analysisComplete: true })
+        setAnalysis(a)
+      } else {
+        const c = await getCustomer(id)
+        if (!c) {
+          setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — customer not found, try again` })
+          navigate('/')
+          return
+        }
+        if (!c.analysisComplete) {
+          setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — profile not found, analyze and try again` })
+          navigate('/')
+          return
+        }
         const a = await getLatestAnalysis(id)
+        setCustomer(c)
         setAnalysis(a || null)
       }
     } catch {
-      setPageError('Failed to load customer data')
+      setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — could not load customer data, try again` })
+      navigate('/')
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, demoMode, demoAnalyses, navigate, setAnalysisState])
 
   useEffect(() => { loadData() }, [loadData])
-
-  const runAnalysis = useCallback(async () => {
-    setAnalyzing(true)
-    setReanalyzePrompt(false)
-    try {
-      const { customer: c, analysis: a } = await analyzeCustomer(customer)
-      setCustomer(c)
-      setAnalysis(a)
-    } catch (err) {
-      setPageError(err.message)
-    } finally {
-      setAnalyzing(false)
-    }
-  }, [customer])
 
   const markAsBought = useCallback(async (productName) => {
     const next = { ...customer, ownedProducts: [...(customer.ownedProducts || []), productName] }
     next.categoryStages = computeCategoryStages(next.ownedProducts)
     next.updatedAt = new Date().toISOString()
-    await putCustomer(next)
+    if (!demoMode) await putCustomer(next)
     setCustomer(next)
-    setReanalyzePrompt(true)
-  }, [customer])
+  }, [customer, demoMode])
 
   const undoBought = useCallback(async (productName) => {
     const next = { ...customer, ownedProducts: (customer.ownedProducts || []).filter(p => p !== productName) }
     next.categoryStages = computeCategoryStages(next.ownedProducts)
     next.updatedAt = new Date().toISOString()
-    await putCustomer(next)
+    if (!demoMode) await putCustomer(next)
     setCustomer(next)
-    setReanalyzePrompt(true)
-  }, [customer])
+  }, [customer, demoMode])
 
   const owned = customer?.ownedProducts || []
 
@@ -1127,18 +1188,7 @@ function CustomerDetailPage() {
     </div>
   )
 
-  if (pageError) return (
-    <div className="p-8">
-      <p className="text-sm text-rose-600">{pageError}</p>
-      <button onClick={() => navigate('/')} className="mt-4 h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded">
-        Back to customers
-      </button>
-    </div>
-  )
-
-  if (!customer) return null
-
-  const profileComplete = customer.analysisComplete && analysis
+  if (!customer || !analysis) return null
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -1151,63 +1201,15 @@ function CustomerDetailPage() {
             <p className="text-base font-semibold text-slate-700 truncate">{customer.name}</p>
             <p className="text-xs text-slate-400">{customer.id}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {analyzing ? (
-              <span className="text-sm text-slate-400 px-3">Analyzing…</span>
-            ) : profileComplete ? (
-              <button onClick={runAnalysis} className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm rounded">
-                Run Analysis Again
-              </button>
-            ) : (
-              <button onClick={runAnalysis} className="h-9 px-4 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm rounded font-medium">
-                Analyze
-              </button>
-            )}
-          </div>
         </div>
       </div>
-
-      {reanalyzePrompt && (
-        <div className="mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded flex items-center justify-between gap-4">
-          <p className="text-sm text-amber-700">
-            Ownership updated — run a fresh analysis to update scores based on new product ownership?
-          </p>
-          <div className="flex items-center gap-2 shrink-0">
-            <button onClick={runAnalysis} className="h-9 px-4 bg-amber-100 hover:bg-amber-200 text-amber-700 text-sm rounded">Run Analysis</button>
-            <button onClick={() => setReanalyzePrompt(false)} className="h-9 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm rounded">Dismiss</button>
-          </div>
-        </div>
-      )}
-
-      {analyzing && (
-        <div className="flex flex-col items-center justify-center gap-4 py-24">
-          <div className="flex gap-1.5">
-            {[0,200,400].map(d => (
-              <span key={d} className="w-2 h-2 bg-slate-300 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
-            ))}
-          </div>
-          <p className="text-sm text-slate-400">Analysis running…</p>
-        </div>
-      )}
-
-      {!customer.analysisComplete && !analyzing && (
-        <div className="flex flex-col items-center justify-center gap-4 py-24">
-          <p className="text-sm text-slate-400">No analysis for this customer yet</p>
-          <button onClick={runAnalysis} className="h-9 px-6 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm rounded font-medium">
-            Run Analysis
-          </button>
-        </div>
-      )}
-
-      {profileComplete && !analyzing && (
-        <div className="p-6 space-y-6">
-          <TopOpportunities scores={unownedScores} />
-          <CompanyProfileCard profile={analysis.companyProfile} />
-          <PropensityPipeline scoresByCategory={scoresByCategory} categoryStages={customer.categoryStages} onMarkAsBought={markAsBought} />
-          <RoiRoadmap roadmap={analysis.roiRoadmap} />
-          <OwnedProducts ownedByCategory={ownedByCategory} onUndo={undoBought} />
-        </div>
-      )}
+      <div className="p-6 space-y-6">
+        <TopOpportunities scores={unownedScores} />
+        <CompanyProfileCard profile={analysis.companyProfile} />
+        <PropensityPipeline scoresByCategory={scoresByCategory} categoryStages={customer.categoryStages} onMarkAsBought={markAsBought} />
+        <RoiRoadmap roadmap={analysis.roiRoadmap} />
+        <OwnedProducts ownedByCategory={ownedByCategory} onUndo={undoBought} />
+      </div>
     </div>
   )
 }
@@ -1215,6 +1217,27 @@ function CustomerDetailPage() {
 // ============================================================
 // SECTION 4 — API CLIENT
 // ============================================================
+
+async function analyzeDemoCustomer(customer, setDemoAnalysis) {
+  await new Promise(r => setTimeout(r, 7000))
+  if (customer.id === 'AAA') {
+    throw new Error('Something went wrong — try again')
+  }
+  const res = await fetch('/test-data/demo-000.json')
+  if (!res.ok) throw new Error('Something went wrong — could not load demo data, check with developer')
+  const data = await res.json()
+  const analysisRecord = {
+    id:             crypto.randomUUID(),
+    customerId:     customer.id,
+    analyzedAt:     new Date().toISOString(),
+    companyProfile: data.companyProfile,
+    productScores:  data.productScores,
+    roiRoadmap:     { ...data.roiRoadmap, generatedAt: new Date().toISOString() },
+    modelVersion:   'demo',
+  }
+  setDemoAnalysis(customer.id, analysisRecord)
+  return analysisRecord
+}
 
 async function analyzeCustomer(customer) {
   let keys
@@ -1320,6 +1343,8 @@ function NavBar() {
   }
 
   const totalCustomers = useStore(s => s.totalCustomers)
+  const demoMode       = useStore(s => s.demoMode)
+  const setDemoMode    = useStore(s => s.setDemoMode)
 
   async function handleClearAll() {
     await clearAllData()
@@ -1343,6 +1368,24 @@ function NavBar() {
         </div>
 
         <div className="flex items-center gap-3">
+          <div className="flex items-center bg-slate-100 rounded-full p-0.5">
+            <button
+              onClick={() => setDemoMode(false)}
+              className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
+                !demoMode ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Live
+            </button>
+            <button
+              onClick={() => setDemoMode(true)}
+              className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
+                demoMode ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Demo
+            </button>
+          </div>
           <div className="flex items-center bg-slate-100 rounded-full p-0.5">
             <button
               onClick={() => handleModelChange('sonnet')}
@@ -1394,7 +1437,7 @@ function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index                element={<CustomerListPage />}   />
-          <Route path="/customer/:id" element={<CustomerDetailPage />} />
+          <Route path="/profile/:id" element={<CustomerDetailPage />} />
           <Route path="*"             element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
