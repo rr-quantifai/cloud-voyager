@@ -783,12 +783,6 @@ function CustomerListPage() {
 // SECTION 3 — CUSTOMER DETAIL PAGE
 // ============================================================
 
-const CONF_CLS = {
-  High:   'bg-emerald-100 text-emerald-700',
-  Medium: 'bg-amber-100 text-amber-700',
-  Low:    'bg-rose-100 text-rose-700',
-}
-
 const LABEL_CLS = {
   'Very High': 'bg-emerald-100 text-emerald-700',
   High:        'bg-blue-100 text-blue-700',
@@ -796,170 +790,110 @@ const LABEL_CLS = {
   Low:         'bg-slate-100 text-slate-500',
 }
 
-const CAT_ORDER = ['Cloud', 'Modern Work', 'Security', 'AI', 'BizApps']
+function CompanyProfile({ profile, ownedProducts }) {
+  const allMsProducts = new Set(Object.values(PRODUCTS_BY_CATEGORY).flat())
 
-function stageCls(stage) {
-  if (stage === 'Established') return 'bg-emerald-100 text-emerald-700'
-  if (stage === 'Active')      return 'bg-blue-100 text-blue-700'
-  return 'bg-slate-100 text-slate-500'
-}
+  const productCat = {}
+  for (const [cat, prods] of Object.entries(PRODUCTS_BY_CATEGORY)) {
+    for (const p of prods) productCat[p] = cat
+  }
 
-function TopOpportunities({ scores }) {
-  if (!scores.length) return null
-  const top = [...scores].sort((a, b) => b.score - a.score).slice(0, 3)
+  const techStack = profile.currentTechStack || []
+  const msOwned = ownedProducts.filter(p => allMsProducts.has(p))
+  const msFound = techStack.filter(p => allMsProducts.has(p) && !ownedProducts.includes(p))
+  const nonMs   = techStack.filter(p => !allMsProducts.has(p))
+
   return (
-    <section>
-      <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Top Opportunities</h2>
-      <div className="grid grid-cols-3 gap-4">
-        {top.map(op => {
-          const cc = CATEGORY_CLASSES[op.category] || CATEGORY_CLASSES['Cloud']
-          return (
-            <div key={op.product} className="bg-white border border-slate-200 rounded p-4 flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-sm font-medium text-slate-700 leading-snug">{op.product}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${LABEL_CLS[op.label] || LABEL_CLS.Medium}`}>
-                  {op.label}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{op.category}</span>
-                <span className="text-xs text-slate-400">Score {op.score}</span>
-              </div>
+    <section className="bg-white border border-slate-200 rounded p-4">
+      <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+        <span className="text-sm font-semibold text-slate-700">Company Profile</span>
+        <span className="text-slate-300">·</span>
+        <span className="text-xs text-slate-500">Data confidence: {profile.dataConfidence}</span>
+        <span className="text-slate-300">·</span>
+        <span className="text-xs text-slate-500">IT maturity: {profile.itMaturityLevel}</span>
+      </div>
+      <p className="text-sm text-slate-600 leading-relaxed text-justify mb-4">{profile.summary}</p>
+      <div className="border-t border-slate-100 pt-4 space-y-3">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Technology stack</p>
+        {msOwned.length > 0 && (
+          <div>
+            <p className="text-xs text-slate-400 mb-1.5">Microsoft products — marked by user</p>
+            <div className="flex flex-wrap gap-1">
+              {msOwned.map(p => {
+                const cat = productCat[p]
+                const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
+                return <span key={p} className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{p}</span>
+              })}
             </div>
-          )
-        })}
+          </div>
+        )}
+        {msFound.length > 0 && (
+          <div>
+            <p className="text-xs text-slate-400 mb-1.5">Microsoft products — found by research</p>
+            <div className="flex flex-wrap gap-1">
+              {msFound.map(p => (
+                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
+              ))}
+            </div>
+          </div>
+        )}
+        {nonMs.length > 0 && (
+          <div>
+            <p className="text-xs text-slate-400 mb-1.5">Non-Microsoft products</p>
+            <div className="flex flex-wrap gap-1">
+              {nonMs.map(p => (
+                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )
 }
 
-function CompanyProfileCard({ profile }) {
-  if (!profile) return null
+function PropensityPipeline({ scores }) {
+  const LEVEL_ORDER = ['Very High', 'High', 'Medium', 'Low']
+  const catalogueOrder = Object.values(PRODUCTS_BY_CATEGORY).flat()
+
+  const grouped = useMemo(() => {
+    const map = { 'Very High': [], High: [], Medium: [], Low: [] }
+    for (const ps of scores) { if (map[ps.label]) map[ps.label].push(ps) }
+    for (const level of LEVEL_ORDER) {
+      map[level].sort((a, b) => catalogueOrder.indexOf(a.product) - catalogueOrder.indexOf(b.product))
+    }
+    return map
+  }, [scores])
+
+  const activeLevels = LEVEL_ORDER.filter(l => grouped[l]?.length > 0)
+  if (!activeLevels.length) return null
+
   return (
-    <section className="bg-white border border-slate-200 rounded">
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-4">
-          <h2 className="text-sm font-semibold text-slate-700">Company Profile</h2>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CONF_CLS[profile.dataConfidence] || CONF_CLS.Medium}`}>
-            {profile.dataConfidence} confidence
-          </span>
-        </div>
-        <div className="grid grid-cols-3 gap-x-8 gap-y-3 text-sm mb-4">
-          {profile.website && (
-            <div>
-              <p className="text-slate-400 text-xs mb-0.5">Website</p>
-              <p className="text-slate-700">{profile.website}</p>
-            </div>
-          )}
-          <div>
-            <p className="text-slate-400 text-xs mb-0.5">Industry</p>
-            <p className="text-slate-700">{profile.industry}{profile.subIndustry ? ` — ${profile.subIndustry}` : ''}</p>
+    <section>
+      <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Propensity pipeline</h2>
+      {activeLevels.map(level => (
+        <div key={level} className="mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${LABEL_CLS[level]}`}>{level}</span>
+            <div className="flex-1 h-px bg-slate-200" />
           </div>
-          <div>
-            <p className="text-slate-400 text-xs mb-0.5">Estimated Size</p>
-            <p className="text-slate-700">{profile.estimatedSize}</p>
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs mb-0.5">HQ</p>
-            <p className="text-slate-700">{profile.hqLocation}</p>
-          </div>
-          {profile.operatingRegions?.length > 0 && (
-            <div>
-              <p className="text-slate-400 text-xs mb-0.5">Operating Regions</p>
-              <p className="text-slate-700">{profile.operatingRegions.join(', ')}</p>
-            </div>
-          )}
-          <div>
-            <p className="text-slate-400 text-xs mb-0.5">IT Maturity</p>
-            <p className="text-slate-700">{profile.itMaturityLevel}</p>
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs mb-0.5">Implementation Readiness</p>
-            <p className="text-slate-700">{profile.implementationReadiness}</p>
-          </div>
-        </div>
-        {profile.currentTechStack?.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-slate-400 mb-1.5">Current Tech Stack</p>
-            <div className="flex flex-wrap gap-1">
-              {profile.currentTechStack.map(t => (
-                <span key={t} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{t}</span>
-              ))}
-            </div>
-          </div>
-        )}
-        {profile.keyBusinessChallenges?.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-slate-400 mb-1.5">Key Business Challenges</p>
-            <div className="flex flex-wrap gap-1">
-              {profile.keyBusinessChallenges.map(ch => (
-                <span key={ch} className="text-xs px-2 py-0.5 bg-rose-50 text-rose-700 rounded">{ch}</span>
-              ))}
-            </div>
-          </div>
-        )}
-        {profile.summary && (
-          <p className="text-sm text-slate-600 leading-relaxed mb-4">{profile.summary}</p>
-        )}
-        {profile.signals?.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Signals</p>
-            <div className="space-y-2">
-              {profile.signals.map((sig, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 mt-0.5 font-medium ${CONF_CLS[sig.confidence] || CONF_CLS.Medium}`}>
-                    {sig.confidence}
-                  </span>
-                  <div>
-                    <p className="text-sm text-slate-700">{sig.claim}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{sig.source}{sig.note ? ` — ${sig.note}` : ''}</p>
+          <div className="space-y-3">
+            {grouped[level].map(ps => {
+              const cc = CATEGORY_CLASSES[ps.category] || { bg: 'bg-slate-100', text: 'text-slate-500' }
+              return (
+                <div key={ps.product} className="bg-white border border-slate-200 rounded p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-medium text-slate-700">{ps.product}</span>
+                    <span className="text-slate-300">·</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cc.bg} ${cc.text}`}>{ps.category}</span>
                   </div>
+                  <p className="text-sm text-slate-500 leading-relaxed text-justify">{ps.rationale}</p>
                 </div>
-              ))}
-            </div>
+              )
+            })}
           </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function PropensityPipeline({ scoresByCategory, categoryStages }) {
-  const cats = CAT_ORDER.filter(c => scoresByCategory[c]?.length)
-  if (!cats.length) return null
-  return (
-    <section>
-      <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Propensity Pipeline</h2>
-      <div className="space-y-4">
-        {cats.map(cat => {
-          const cc    = CATEGORY_CLASSES[cat]
-          const stage = categoryStages?.[cat] || 'Not Started'
-          return (
-            <div key={cat} className="bg-white border border-slate-200 rounded">
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cc.bg} ${cc.text}`}>{cat}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${stageCls(stage)}`}>{stage}</span>
-              </div>
-              <div className="p-4 space-y-4">
-                {scoresByCategory[cat].map(ps => (
-                  <div key={ps.product} className="flex items-start gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-medium text-slate-700">{ps.product}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${LABEL_CLS[ps.label] || LABEL_CLS.Medium}`}>
-                          {ps.label}
-                        </span>
-                        <span className="text-xs text-slate-400 shrink-0">{ps.score}</span>
-                      </div>
-                      <p className="text-sm text-slate-500 leading-relaxed">{ps.rationale}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
+        </div>
+      ))}
     </section>
   )
 }
@@ -1026,15 +960,6 @@ function CustomerDetailPage() {
     [analysis, owned]
   )
 
-  const scoresByCategory = useMemo(() => {
-    const map = {}
-    for (const cat of CAT_ORDER) {
-      const prods = unownedScores.filter(ps => ps.category === cat).sort((a, b) => b.score - a.score)
-      if (prods.length) map[cat] = prods
-    }
-    return map
-  }, [unownedScores])
-
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <span className="text-sm text-slate-400">Loading…</span>
@@ -1049,7 +974,7 @@ function CustomerDetailPage() {
         <div className="flex items-center justify-between">
           <div className="min-w-0">
             <p className="text-base font-semibold text-slate-700 truncate">{customer.name}</p>
-            <p className="text-xs text-slate-400">{customer.id}</p>
+            <p className="text-xs text-slate-400">{customer.id}{analysis.companyProfile.website ? ` · ${analysis.companyProfile.website}` : ' · Website not found'}</p>
           </div>
           <button onClick={() => navigate('/')} className="h-8 px-3 rounded-md text-xs font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 transition-colors shrink-0 ml-4">
             Go Back
@@ -1057,9 +982,8 @@ function CustomerDetailPage() {
         </div>
       </div>
       <div className="p-6 space-y-6">
-        <TopOpportunities scores={unownedScores} />
-        <CompanyProfileCard profile={analysis.companyProfile} />
-        <PropensityPipeline scoresByCategory={scoresByCategory} categoryStages={customer.categoryStages} />
+        <CompanyProfile profile={analysis.companyProfile} ownedProducts={owned} />
+        <PropensityPipeline scores={unownedScores} />
       </div>
     </div>
   )
