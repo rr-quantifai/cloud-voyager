@@ -441,16 +441,22 @@ Stage 3 — Map gaps to products and score
 Score each unowned product on how directly it addresses an identified gap. Regulatory gap = Very High. Useful but no identified gap = Low.
 
 RATIONALE RULES:
-- Lead with the signal, not a product description. A brief one-sentence product framing is acceptable only when it directly connects the signal to the solution — never as an opener
-- Connection type must be one of the following — if none fit cleanly, use whichever is closest and be explicit about the signal:
-    - Regulatory: name the specific regulation and the control gap it creates
-    - Competitive risk: name the peer, sector trend, or market pressure
-    - Incumbent displacement: name the specific system being replaced and why
-    - Hiring signal: name the role or team pattern and what it implies
-    - Strategic announcement: name the specific initiative or commitment
-    - Operational inefficiency: name the specific cost or process being removed
-    - Technology progression: the customer's existing owned products create a natural dependency or gap — name the owned product and the specific gap
-- Similar rationale across companies in the same industry is acceptable when driven by a shared regulation or sector-wide condition — specificity comes from naming the regulation, the company's current compliance posture, and the specific control gap. A generic product pitch with no signal anchor is never acceptable
+Write a single compressed paragraph per product. This paragraph is the sales brief a channel partner reads immediately before a customer conversation — it must be specific, punchy, and free of filler. No generic product descriptions. Every sentence must earn its place.
+
+The paragraph must weave together all of the following angles that are relevant and evidenced for this specific customer:
+
+- Signal: the specific intelligence that makes this product relevant — a regulation, an incumbent system, a hiring pattern, a strategic announcement, an operational gap, or a technology dependency. Name it explicitly
+- Regulatory: if a specific law or framework creates a control gap this product closes, name the regulation, the specific requirement, and the specific control the product provides
+- Incumbent displacement: if this product displaces a named system already in use, name the incumbent and state why displacement is viable now
+- Technology dependency: if this product depends on or is enabled by another product the customer already owns or is being recommended, name that product and the specific dependency
+- CTO case: what specific technical problem does this solve or what does it unlock — one concrete statement
+- CFO case: what does this cost less than, replace, or avoid — one concrete statement anchored in a published benchmark or a directional argument if no verified figure exists. Never fabricate a number
+- CISO case: if applicable, what specific regulatory requirement does this satisfy and what specific control does it provide
+
+Not every angle applies to every product. Include only what is evidenced and relevant. Omit angles that would require fabrication or padding.
+
+Do not end the paragraph with a full stop.
+Similar rationale across companies in the same industry is acceptable when driven by a shared regulation or sector-wide condition — specificity comes from naming the regulation, the company's current compliance posture, and the specific control gap.
 
 SPARSE CONTEXT RULE:
 If context is thin, score conservatively and set dataConfidence to Low. A low-confidence honest score is more valuable than a high-confidence fabricated one.
@@ -473,6 +479,7 @@ Signals array: populate with each key claim, its source, and confidence:
 - Low: inferred from one indirect or outdated mention
 
 Do not end any text field with a full stop.
+Use sentence case for all text fields — proper nouns, product names, company names, regulations, and acronyms are the only exceptions.
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
@@ -499,95 +506,6 @@ ${context}`;
   return { system, user };
 }
 
-function buildRoadmapPrompt(companyProfile, productScores, ownedProducts) {
-  // Pass the top-scoring products so the roadmap focuses on the highest-value opportunities
-  const top        = [...productScores].sort((a, b) => b.score - a.score).slice(0, 10);
-  const ownedStr   = ownedProducts.length ? ownedProducts.join(', ') : 'None';
-
-  const system = `You are a senior Microsoft enterprise business case strategist with deep \
-experience presenting to C-suite audiences across the Gulf, Levant, and North Africa. \
-A CTO wants to know what breaks and what it unlocks. A CFO wants numbers they can defend \
-in a budget meeting. A CISO wants a compliance map they can hand to their auditor. You write \
-with the precision of someone who has had their figures challenged in a boardroom and survived it.
-
-Your output will be presented by a channel partner directly to the customer's decision-makers. \
-Every claim must be something the partner can defend if questioned.`;
-
-  const user = `YOUR TASK:
-Create a 12-month ROI roadmap that helps this company's decision-makers say yes. Three phases, each addressing CTO, CFO, and CISO simultaneously.
-
-CTO / IT — what does this fix or unlock?
-- Specific technical problem this phase addresses
-- How it integrates with what they already own
-- Realistic deployment timeline
-- What it enables for the next phase
-
-CFO — what does this cost and what does it save?
-- Licence consolidation: what point solutions this replaces and estimated saving (published MEA or global enterprise benchmarks)
-- Cost avoidance: cite specific published data — IBM, Gartner, Microsoft, IDC, Forrester only. If no verified figure exists, write the directional argument without a number — a qualitative argument beats a fabricated stat
-- Productivity gain: cite published benchmarks where applicable
-- TCO reduction vs current setup over 3 years where relevant
-
-CISO / legal / compliance — what does this satisfy?
-- Map each product to the specific regulation it addresses for this company's country and industry — name regulation, requirement, product, and specific control
-- Data residency: confirm Azure region satisfying their country's data localisation requirements
-- Relevant certifications for their industry
-
-PHASE LOGIC:
-- Phase 1 (Month 1–3): highest-propensity products, shortest deployment
-- Phase 2 (Month 4–6): products requiring Phase 1 as foundation
-- Phase 3 (Month 7–12): strategic products with longer deployment cycles
-
-RULES:
-- No partner revenue, deal values, or seller-side metrics anywhere
-- No padding — if a section has nothing specific, one honest sentence beats generic filler
-- Do not end any text field with a full stop
-- Sparse context rule applies: flag uncertainty rather than invent specificity
-
-COMPANY PROFILE: ${JSON.stringify(companyProfile)}
-TOP SCORED PRODUCTS: ${JSON.stringify(top)}
-OWNED PRODUCTS: ${ownedStr}
-
-Respond ONLY in valid JSON matching this schema. No preamble. No markdown fences.
-
-{
-  "generatedAt": "",
-  "phases": [
-    {
-      "phase": 1,
-      "label": "",
-      "timeframe": "",
-      "products": [],
-      "cto": {
-        "headline": "",
-        "detail": "",
-        "deploymentTimeline": "",
-        "integrationNote": ""
-      },
-      "cfo": {
-        "headline": "",
-        "licenceConsolidation": "",
-        "costAvoidance": "",
-        "productivityGain": "",
-        "tcoNote": ""
-      },
-      "ciso": {
-        "headline": "",
-        "regulatoryMapping": [
-          { "regulation": "", "requirement": "", "product": "", "control": "" }
-        ],
-        "dataResidency": "",
-        "certifications": []
-      }
-    }
-  ],
-  "totalCustomerValue": "",
-  "disclaimer": ""
-}`;
-
-  return { system, user };
-}
-
 // ── Pipeline orchestrator ─────────────────────────────────────────────────
 
 async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey, model }) {
@@ -595,7 +513,7 @@ async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey
   // Step 1 — Nine Tavily searches in parallel
   const context = await gatherContext(companyName, tavilyKey);
 
-  // Step 2 — Claude Call 1: company profile + propensity scores
+  // Step 2 — Claude: company profile + propensity scores
   const { system: sys1, user: user1 } = buildProfilePrompt(companyName, context, ownedProducts);
   const raw1 = await claudeCall(sys1, user1, anthropicKey, model);
 
@@ -603,10 +521,10 @@ async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey
   try {
     call1 = JSON.parse(raw1);
   } catch {
-    throw new Error('Something went wrong — Claude Call 1 returned unparseable JSON, check Anthropic API details');
+    throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
   }
   if (!call1.companyProfile || !Array.isArray(call1.productScores)) {
-    throw new Error('Something went wrong — Claude Call 1 response is missing required fields');
+    throw new Error('Something went wrong — Claude response is missing required fields');
   }
 
   // Normalise labels to the canonical score bands — overrides whatever Claude emits
@@ -615,28 +533,10 @@ async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey
     label: labelFromScore(Number(ps.score) || 0),
   }));
 
-  // Step 3 — Claude Call 2: ROI roadmap (sequential — depends on Call 1 output)
-  const { system: sys2, user: user2 } = buildRoadmapPrompt(call1.companyProfile, productScores, ownedProducts);
-  const raw2 = await claudeCall(sys2, user2, anthropicKey, model);
-
-  let roiRoadmap;
-  try {
-    roiRoadmap = JSON.parse(raw2);
-  } catch {
-    throw new Error('Something went wrong — Claude Call 2 returned unparseable JSON, check Anthropic API details');
-  }
-  if (!Array.isArray(roiRoadmap.phases) || !roiRoadmap.phases.length) {
-    throw new Error('Something went wrong — Claude Call 2 response is missing roadmap phases');
-  }
-
-  // Stamp generatedAt server-side so the client value is authoritative
-  roiRoadmap.generatedAt = new Date().toISOString();
-
-  // Strip trailing full stops from all string values across both outputs
+  // Strip trailing full stops from all string values
   return {
     companyProfile: stripPeriods(call1.companyProfile),
     productScores:  stripPeriods(productScores),
-    roiRoadmap:     stripPeriods(roiRoadmap),
     modelVersion:   model,
   };
 }

@@ -113,7 +113,6 @@ function AnalysisStrip({ state, onClear }) {
     initializing: 'initializing analysis',
     tavily:       'searching 9 intelligence sources across strategy, infrastructure, security, AI, and enterprise systems',
     claude1:      'building company profile and scoring propensity across 22 Microsoft products',
-    claude2:      'generating 12-month CTO, CFO, and CISO roadmaps',
   }
 
   return (
@@ -490,7 +489,6 @@ function CustomerListPage() {
       phaseTimers.current = [
         setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),   800),
         setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude1' } : s),  2500),
-        setTimeout(() => setAnalysisState(s => s?.phase === 'claude1'      ? { ...s, phase: 'claude2' } : s),  4500),
       ]
       try {
         await analyzeDemoCustomer(customer, setDemoAnalysis)
@@ -509,7 +507,6 @@ function CustomerListPage() {
     phaseTimers.current = [
       setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),  1500),
       setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude1' } : s), 13500),
-      setTimeout(() => setAnalysisState(s => s?.phase === 'claude1'      ? { ...s, phase: 'claude2' } : s), 46500),
     ]
 
     try {
@@ -757,7 +754,7 @@ function CustomerListPage() {
               {table.getRowModel().rows.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50 transition-colors">
                   {row.getVisibleCells().map(cell => (
-  <td key={cell.id} className={cell.column.id === 'actions' ? 'py-4 pr-4' : 'px-4 py-3'}>
+  <td key={cell.id} className={cell.column.id === 'actions' ? 'px-4 py-4' : 'px-4 py-3'}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -927,7 +924,7 @@ function CompanyProfileCard({ profile }) {
   )
 }
 
-function PropensityPipeline({ scoresByCategory, categoryStages, onMarkAsBought }) {
+function PropensityPipeline({ scoresByCategory, categoryStages }) {
   const cats = CAT_ORDER.filter(c => scoresByCategory[c]?.length)
   if (!cats.length) return null
   return (
@@ -956,125 +953,6 @@ function PropensityPipeline({ scoresByCategory, categoryStages, onMarkAsBought }
                       </div>
                       <p className="text-sm text-slate-500 leading-relaxed">{ps.rationale}</p>
                     </div>
-                    <button
-                      onClick={() => onMarkAsBought(ps.product)}
-                      className="h-9 px-3 shrink-0 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs rounded"
-                    >
-                      Mark as Bought
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-function RoiRoadmap({ roadmap }) {
-  if (!roadmap?.phases?.length) return null
-  return (
-    <section>
-      <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">12-Month ROI Roadmap</h2>
-      <div className="space-y-4">
-        {roadmap.phases.map(phase => (
-          <div key={phase.phase} className="bg-white border border-slate-200 rounded">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-              <span className="text-xs font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded">Phase {phase.phase}</span>
-              <span className="text-sm font-medium text-slate-700">{phase.label}</span>
-              <span className="text-xs text-slate-400">{phase.timeframe}</span>
-            </div>
-            {phase.products?.length > 0 && (
-              <div className="px-4 pt-3 flex flex-wrap gap-1">
-                {phase.products.map(p => (
-                  <span key={p} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{p}</span>
-                ))}
-              </div>
-            )}
-            <div className="grid grid-cols-3 divide-x divide-slate-100 p-4 gap-0">
-              <div className="pr-4">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">CTO / IT</p>
-                {phase.cto && (
-                  <div className="space-y-2 text-sm">
-                    <p className="font-medium text-slate-700">{phase.cto.headline}</p>
-                    {phase.cto.detail            && <p className="text-slate-500">{phase.cto.detail}</p>}
-                    {phase.cto.deploymentTimeline && <p className="text-xs text-slate-400">Timeline: {phase.cto.deploymentTimeline}</p>}
-                    {phase.cto.integrationNote   && <p className="text-xs text-slate-400">{phase.cto.integrationNote}</p>}
-                  </div>
-                )}
-              </div>
-              <div className="px-4">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">CFO</p>
-                {phase.cfo && (
-                  <div className="space-y-2 text-sm">
-                    <p className="font-medium text-slate-700">{phase.cfo.headline}</p>
-                    {phase.cfo.licenceConsolidation && <p className="text-slate-500">{phase.cfo.licenceConsolidation}</p>}
-                    {phase.cfo.costAvoidance        && <p className="text-slate-500">{phase.cfo.costAvoidance}</p>}
-                    {phase.cfo.productivityGain     && <p className="text-slate-500">{phase.cfo.productivityGain}</p>}
-                    {phase.cfo.tcoNote              && <p className="text-xs text-slate-400">{phase.cfo.tcoNote}</p>}
-                  </div>
-                )}
-              </div>
-              <div className="pl-4">
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">CISO / Legal</p>
-                {phase.ciso && (
-                  <div className="space-y-2 text-sm">
-                    <p className="font-medium text-slate-700">{phase.ciso.headline}</p>
-                    {phase.ciso.dataResidency && <p className="text-slate-500">{phase.ciso.dataResidency}</p>}
-                    {phase.ciso.certifications?.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {phase.ciso.certifications.map(cert => (
-                          <span key={cert} className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{cert}</span>
-                        ))}
-                      </div>
-                    )}
-                    {phase.ciso.regulatoryMapping?.length > 0 && (
-                      <div className="space-y-2 mt-1">
-                        {phase.ciso.regulatoryMapping.map((r, i) => (
-                          <div key={i} className="border-l-2 border-rose-200 pl-2">
-                            <p className="text-xs font-medium text-slate-600">{r.regulation}</p>
-                            <p className="text-xs text-slate-500">{r.requirement}</p>
-                            <p className="text-xs text-slate-400">{r.product}: {r.control}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      {(roadmap.totalCustomerValue || roadmap.disclaimer) && (
-        <div className="mt-4 p-4 bg-white border border-slate-200 rounded space-y-1">
-          {roadmap.totalCustomerValue && <p className="text-sm font-medium text-slate-700">{roadmap.totalCustomerValue}</p>}
-          {roadmap.disclaimer          && <p className="text-xs text-slate-400">{roadmap.disclaimer}</p>}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function OwnedProducts({ ownedByCategory, onUndo }) {
-  const cats = CAT_ORDER.filter(c => ownedByCategory[c]?.length)
-  if (!cats.length) return null
-  return (
-    <section>
-      <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Owned Products</h2>
-      <div className="bg-white border border-slate-200 rounded p-4 space-y-3">
-        {cats.map(cat => {
-          const cc = CATEGORY_CLASSES[cat]
-          return (
-            <div key={cat} className="flex items-start gap-3">
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${cc.bg} ${cc.text}`}>{cat}</span>
-              <div className="flex flex-wrap gap-2">
-                {ownedByCategory[cat].map(prod => (
-                  <div key={prod} className="flex items-center gap-1.5 bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full">
-                    <span>{prod}</span>
-                    <button onClick={() => onUndo(prod)} className="hover:text-emerald-900 underline underline-offset-2">Undo</button>
                   </div>
                 ))}
               </div>
@@ -1141,22 +1019,6 @@ function CustomerDetailPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  const markAsBought = useCallback(async (productName) => {
-    const next = { ...customer, ownedProducts: [...(customer.ownedProducts || []), productName] }
-    next.categoryStages = computeCategoryStages(next.ownedProducts)
-    next.updatedAt = new Date().toISOString()
-    if (!demoMode) await putCustomer(next)
-    setCustomer(next)
-  }, [customer, demoMode])
-
-  const undoBought = useCallback(async (productName) => {
-    const next = { ...customer, ownedProducts: (customer.ownedProducts || []).filter(p => p !== productName) }
-    next.categoryStages = computeCategoryStages(next.ownedProducts)
-    next.updatedAt = new Date().toISOString()
-    if (!demoMode) await putCustomer(next)
-    setCustomer(next)
-  }, [customer, demoMode])
-
   const owned = customer?.ownedProducts || []
 
   const unownedScores = useMemo(() =>
@@ -1173,15 +1035,6 @@ function CustomerDetailPage() {
     return map
   }, [unownedScores])
 
-  const ownedByCategory = useMemo(() => {
-    const map = {}
-    for (const cat of CAT_ORDER) {
-      const prods = owned.filter(name => PRODUCTS_BY_CATEGORY[cat].includes(name))
-      if (prods.length) map[cat] = prods
-    }
-    return map
-  }, [owned])
-
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <span className="text-sm text-slate-400">Loading…</span>
@@ -1193,22 +1046,20 @@ function CustomerDetailPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="bg-white border-b border-slate-200 px-6 py-3">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/')} className="h-9 px-3 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded">
-            ← Back
-          </button>
-          <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
             <p className="text-base font-semibold text-slate-700 truncate">{customer.name}</p>
             <p className="text-xs text-slate-400">{customer.id}</p>
           </div>
+          <button onClick={() => navigate('/')} className="h-8 px-3 rounded-md text-xs font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 transition-colors shrink-0 ml-4">
+            Go Back
+          </button>
         </div>
       </div>
       <div className="p-6 space-y-6">
         <TopOpportunities scores={unownedScores} />
         <CompanyProfileCard profile={analysis.companyProfile} />
-        <PropensityPipeline scoresByCategory={scoresByCategory} categoryStages={customer.categoryStages} onMarkAsBought={markAsBought} />
-        <RoiRoadmap roadmap={analysis.roiRoadmap} />
-        <OwnedProducts ownedByCategory={ownedByCategory} onUndo={undoBought} />
+        <PropensityPipeline scoresByCategory={scoresByCategory} categoryStages={customer.categoryStages} />
       </div>
     </div>
   )
@@ -1232,7 +1083,6 @@ async function analyzeDemoCustomer(customer, setDemoAnalysis) {
     analyzedAt:     new Date().toISOString(),
     companyProfile: data.companyProfile,
     productScores:  data.productScores,
-    roiRoadmap:     { ...data.roiRoadmap, generatedAt: new Date().toISOString() },
     modelVersion:   'demo',
   }
   setDemoAnalysis(customer.id, analysisRecord)
@@ -1291,11 +1141,10 @@ async function analyzeCustomer(customer) {
     throw new Error('Something went wrong — malformed response from analysis function, could not parse JSON, check with developer')
   }
 
-  const { companyProfile, productScores, roiRoadmap, modelVersion } = data
+  const { companyProfile, productScores, modelVersion } = data
 
   if (!companyProfile)                                  throw new Error('Something went wrong — analysis response missing companyProfile, check with developer')
   if (!Array.isArray(productScores) || !productScores.length) throw new Error('Something went wrong — analysis response missing productScores, check with developer')
-  if (!roiRoadmap?.phases?.length)                      throw new Error('Something went wrong — analysis response missing roiRoadmap, check with developer')
 
   const analysisRecord = {
     id:            crypto.randomUUID(),
@@ -1303,7 +1152,6 @@ async function analyzeCustomer(customer) {
     analyzedAt:    new Date().toISOString(),
     companyProfile,
     productScores,
-    roiRoadmap,
     modelVersion:  modelVersion ?? model,
   }
 
