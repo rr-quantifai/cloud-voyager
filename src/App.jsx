@@ -836,33 +836,33 @@ function CompanyProfile({ profile, ownedProducts }) {
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${MATURITY_CLS[profile.itMaturityLevel] || 'bg-slate-100 text-slate-500'}`}>{profile.itMaturityLevel}</span>
         </div>
         <div className="flex items-start gap-3 px-4 py-4 border-t border-slate-200">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 whitespace-nowrap pt-0.5">Products owned</span>
-          <span className="text-slate-300 shrink-0">·</span>
+          <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap pt-0.5">Products Owned</span>
+          <span className="text-slate-300 shrink-0 pt-0.5">·</span>
           {msOwned.length > 0
             ? <div className="flex flex-wrap gap-1">{msOwned.map(p => {
                 const cat = PRODUCT_CATEGORY[p]
                 const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
                 return <span key={p} className={`text-xs px-2 py-0.5 rounded-full font-medium ${cc.bg} ${cc.text}`}>{p}</span>
               })}</div>
-            : <span className="text-sm text-slate-400">—</span>}
+            : <span className="text-sm text-slate-400">No products to display</span>}
         </div>
         <div className="flex items-start gap-3 px-4 py-4 border-t border-slate-200">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 whitespace-nowrap pt-0.5">Other Microsoft products</span>
-          <span className="text-slate-300 shrink-0">·</span>
+          <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap pt-0.5">Other Microsoft Products</span>
+          <span className="text-slate-300 shrink-0 pt-0.5">·</span>
           {msFound.length > 0
             ? <div className="flex flex-wrap gap-1">{msFound.map(p => (
                 <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{p}</span>
               ))}</div>
-            : <span className="text-sm text-slate-400">—</span>}
+            : <span className="text-sm text-slate-400">No products to display</span>}
         </div>
         <div className="flex items-start gap-3 px-4 py-4 border-t border-slate-200">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 whitespace-nowrap pt-0.5">Non-Microsoft products</span>
-          <span className="text-slate-300 shrink-0">·</span>
+          <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap pt-0.5">Non-Microsoft Products</span>
+          <span className="text-slate-300 shrink-0 pt-0.5">·</span>
           {nonMs.length > 0
             ? <div className="flex flex-wrap gap-1">{nonMs.map(p => (
                 <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-400">{p}</span>
               ))}</div>
-            : <span className="text-sm text-slate-400">—</span>}
+            : <span className="text-sm text-slate-400">No products to display</span>}
         </div>
       </div>
 
