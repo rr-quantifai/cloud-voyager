@@ -1007,41 +1007,25 @@ function CustomerDetailPage() {
 // SECTION 4 — API CLIENT
 // ============================================================
 
-async function analyzeDemoCustomer(customer, setDemoAnalysis) {
-  await new Promise(r => setTimeout(r, 7000))
-  if (customer.id === 'AAA') {
-    throw new Error('Something went wrong — try again')
-  }
-  const res = await fetch('/test-data/demo-000.json')
-  if (!res.ok) throw new Error('Something went wrong — could not load demo data, check with developer')
-  const data = await res.json()
-  const analysisRecord = {
-    id:             crypto.randomUUID(),
-    customerId:     customer.id,
-    analyzedAt:     new Date().toISOString(),
-    companyProfile: data.companyProfile,
-    productScores:  data.productScores,
-    modelVersion:   'demo',
-  }
-  setDemoAnalysis(customer.id, analysisRecord)
-  return analysisRecord
-}
+// analyzeDemoCustomer — NO CHANGES, keep exactly as-is
+
+// ── analyzeCustomer — REPLACE the entire existing function with this ──────────
 
 async function analyzeCustomer(customer) {
-  let keys
+  let keys;
   try {
-    const settings = await getSettings()
-    keys = settings ?? {}
+    const settings = await getSettings();
+    keys = settings ?? {};
   } catch {
-    throw new Error('Something went wrong — could not read API keys, try reloading the app')
+    throw new Error('Something went wrong — could not read API keys, try reloading the app');
   }
 
-  const anthropicKey = keys.anthropic?.trim()
-  const tavilyKey    = keys.tavily?.trim()
-  const model        = keys.model ?? 'sonnet'
+  const anthropicKey = keys.anthropic?.trim();
+  const tavilyKey    = keys.tavily?.trim();
+  const model        = keys.model ?? 'sonnet';
 
-  if (!anthropicKey) throw new Error('Something went wrong — input Anthropic API details and try again')
-  if (!tavilyKey)    throw new Error('Something went wrong — input Tavily API details and try again')
+  if (!anthropicKey) throw new Error('Something went wrong — input Anthropic API details and try again');
+  if (!tavilyKey)    throw new Error('Something went wrong — input Tavily API details and try again');
 
   const payload = {
     customerId:    customer.id,
@@ -1050,65 +1034,90 @@ async function analyzeCustomer(customer) {
     model,
     anthropicKey,
     tavilyKey,
-  }
+  };
 
-  let res
+  // Step 1 — Trigger the background function (returns 202 immediately)
   try {
-    res = await fetch('/fn/analyze', {
+    const triggerRes = await fetch('/fn/analyze-background', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
-    })
-  } catch {
-    throw new Error('Something went wrong — network error, check your connection and try again')
+    });
+    // 202 = accepted by background function, anything else is unexpected
+    if (triggerRes.status !== 202) {
+      throw new Error(`Something went wrong — analysis trigger returned HTTP ${triggerRes.status}, check with developer`);
+    }
+  } catch (err) {
+    if (err.message.startsWith('Something went wrong')) throw err;
+    throw new Error('Something went wrong — network error, check your connection and try again');
   }
 
-  if (!res.ok) {
-    let msg = `Analysis function returned HTTP ${res.status}`
+  // Step 2 — Poll /fn/analyze-status every 4 seconds until complete or error
+  const POLL_INTERVAL_MS = 4000;
+  const MAX_POLLS        = 225; // 225 × 4s = 15 minutes, matches background function max runtime
+
+  for (let i = 0; i < MAX_POLLS; i++) {
+    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+
+    let pollRes;
     try {
-      const errBody = await res.json()
-      if (errBody?.error && typeof errBody.error === 'string') msg = errBody.error
-    } catch { /* non-JSON error body */ }
-    throw new Error(msg)
+      pollRes = await fetch(`/fn/analyze-status?customerId=${encodeURIComponent(customer.id)}`);
+    } catch {
+      // Transient network error — keep polling
+      continue;
+    }
+
+    if (!pollRes.ok) continue; // Transient server error — keep polling
+
+    let pollData;
+    try {
+      pollData = await pollRes.json();
+    } catch {
+      continue;
+    }
+
+    if (pollData.status === 'pending') continue;
+
+    if (pollData.status === 'error') {
+      throw new Error(pollData.error || 'Something went wrong — try again');
+    }
+
+    if (pollData.status === 'complete') {
+      const { companyProfile, productScores, modelVersion } = pollData.result;
+
+      if (!companyProfile)
+        throw new Error('Something went wrong — analysis response missing companyProfile, check with developer');
+      if (!Array.isArray(productScores) || !productScores.length)
+        throw new Error('Something went wrong — analysis response missing productScores, check with developer');
+
+      const analysisRecord = {
+        id:            crypto.randomUUID(),
+        customerId:    customer.id,
+        analyzedAt:    new Date().toISOString(),
+        companyProfile,
+        productScores,
+        modelVersion:  modelVersion ?? model,
+      };
+
+      try {
+        await deleteAnalysesForCustomer(customer.id);
+        await putAnalysis(analysisRecord);
+      } catch {
+        throw new Error('Something went wrong — analysis completed but could not be saved due to storage issues, check with developer');
+      }
+
+      const updatedCustomer = { ...customer, analysisComplete: true, updatedAt: new Date().toISOString() };
+      try {
+        await putCustomer(updatedCustomer);
+      } catch {
+        console.warn('analyzeCustomer: analysis saved but customer record update failed');
+      }
+
+      return { customer: updatedCustomer, analysis: analysisRecord };
+    }
   }
 
-  let data
-  try {
-    data = await res.json()
-  } catch {
-    throw new Error('Something went wrong — malformed response from analysis function, could not parse JSON, check with developer')
-  }
-
-  const { companyProfile, productScores, modelVersion } = data
-
-  if (!companyProfile)                                  throw new Error('Something went wrong — analysis response missing companyProfile, check with developer')
-  if (!Array.isArray(productScores) || !productScores.length) throw new Error('Something went wrong — analysis response missing productScores, check with developer')
-
-  const analysisRecord = {
-    id:            crypto.randomUUID(),
-    customerId:    customer.id,
-    analyzedAt:    new Date().toISOString(),
-    companyProfile,
-    productScores,
-    modelVersion:  modelVersion ?? model,
-  }
-
-  try {
-    await deleteAnalysesForCustomer(customer.id)
-    await putAnalysis(analysisRecord)
-  } catch {
-    throw new Error('Something went wrong — analysis completed but could not be saved due to storage issues, check with developer')
-  }
-
-  const updatedCustomer = { ...customer, analysisComplete: true, updatedAt: new Date().toISOString() }
-
-  try {
-    await putCustomer(updatedCustomer)
-  } catch {
-    console.warn('analyzeCustomer: analysis saved but customer record update failed')
-  }
-
-  return { customer: updatedCustomer, analysis: analysisRecord }
+  throw new Error('Something went wrong — analysis timed out after 15 minutes, try again');
 }
 
 // ============================================================

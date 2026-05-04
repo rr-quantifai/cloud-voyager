@@ -1,56 +1,52 @@
 'use strict';
 
 // ============================================================
-// netlify/functions/analyze.js
+// netlify/functions/analyze-background.js
 //
-// Fully self-contained — no imports from any other project file.
-// API keys arrive in the POST body, are used in-memory only,
-// and are never written to logs, headers, or any response field.
+// Netlify Background Function — the -background suffix tells
+// Netlify to return 202 immediately and run this handler
+// asynchronously for up to 15 minutes.
 //
-// Architecture note — 200 vs 202:
-// The spec calls for a Netlify Background Function (202 immediate).
-// A true Background Function cannot return data in its response body;
-// the browser client (analyzeCustomer in App.jsx Part 5) awaits the
-// full JSON result and writes it to IndexedDB, which requires a 200
-// response. Returning 200 synchronously is the only architecture that
-// works without an external key-value store (Netlify Blobs, etc.).
-// If a switch to a true background function is made in future, add a
-// Netlify Blobs write here and a /fn/analyze-status polling endpoint.
+// The result (or error) is written to Netlify Blobs.
+// The browser polls /fn/analyze-status to retrieve it.
+//
+// Replaces analyze.js — delete that file after deploying.
 // ============================================================
 
-// ── Product catalogue ──────────────────────────────────────────────────────
+const { getStore } = require('@netlify/blobs');
+
+// ── Blob store name ───────────────────────────────────────────────────────────
+
+const BLOB_STORE = 'cv-analyses';
+
+// ── Product catalogue ─────────────────────────────────────────────────────────
 
 const PRODUCTS = [
-  // Cloud (entry → advanced)
   { name: 'Azure Virtual Machines',                  category: 'Cloud'       },
   { name: 'Azure SQL and Cosmos DB',                 category: 'Cloud'       },
   { name: 'Azure Storage and Data Lake',             category: 'Cloud'       },
   { name: 'Azure App Service',                       category: 'Cloud'       },
   { name: 'Azure Kubernetes Service',                category: 'Cloud'       },
-  // Modern Work (entry → advanced)
   { name: 'Microsoft 365 E3/E5',                     category: 'Modern Work' },
   { name: 'Microsoft Teams',                         category: 'Modern Work' },
   { name: 'SharePoint Online',                       category: 'Modern Work' },
   { name: 'Microsoft Viva',                          category: 'Modern Work' },
-  // Security (entry → advanced)
   { name: 'Microsoft Entra ID',                      category: 'Security'    },
   { name: 'Microsoft Defender for Endpoint',         category: 'Security'    },
   { name: 'Microsoft Defender for Cloud',            category: 'Security'    },
   { name: 'Microsoft Purview',                       category: 'Security'    },
   { name: 'Microsoft Sentinel',                      category: 'Security'    },
-  // AI (entry → advanced)
   { name: 'Microsoft Copilot for M365',              category: 'AI'          },
   { name: 'Copilot Studio',                          category: 'AI'          },
   { name: 'Azure OpenAI Service',                    category: 'AI'          },
   { name: 'Azure AI Studio',                         category: 'AI'          },
   { name: 'Azure Machine Learning',                  category: 'AI'          },
-  // BizApps (entry → advanced)
   { name: 'Power Platform',                          category: 'BizApps'     },
   { name: 'Dynamics 365 Sales',                      category: 'BizApps'     },
   { name: 'Dynamics 365 Finance and Operations',     category: 'BizApps'     },
 ];
 
-// ── Scoring rubric (inlined verbatim from the plan) ───────────────────────
+// ── Scoring rubric ────────────────────────────────────────────────────────────
 
 const SCORING_RUBRIC = `
 Azure Virtual Machines
@@ -169,7 +165,7 @@ Power Platform
   Moderate: manual workflow or approval processes
 `.trim();
 
-// ── Cross-sell trigger map (inlined verbatim from the plan) ───────────────
+// ── Cross-sell trigger map ────────────────────────────────────────────────────
 
 const CROSS_SELL_MAP = `
 If customer owns any Azure Cloud product → High propensity for: Microsoft Defender for Cloud, Microsoft Sentinel, Azure OpenAI Service
@@ -182,9 +178,19 @@ If customer owns Microsoft Sentinel → High propensity for: Microsoft Purview, 
 If customer owns Microsoft Entra ID → High propensity for: Microsoft Defender for Endpoint, Microsoft Purview
 `.trim();
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// ── Error messages ────────────────────────────────────────────────────────────
 
-/** Map numeric score to canonical label band. Overrides whatever Claude emits. */
+const ERROR_MESSAGES = {
+  ANTHROPIC_AUTH_ERROR:       'Something went wrong — incorrect Anthropic API details, input correct details and try again',
+  ANTHROPIC_PAYMENT_ERROR:    'Something went wrong — check your Anthropic account and try again',
+  ANTHROPIC_RATE_LIMIT_ERROR: 'Something went wrong — Anthropic rate limit exceeded, try again',
+  ANTHROPIC_SERVER_ERROR:     'Something went wrong — Anthropic service error, try again',
+  TAVILY_AUTH_ERROR:          'Something went wrong — incorrect Tavily API details, input correct details and try again',
+  TAVILY_ERROR:               'Something went wrong — check your Tavily account and try again',
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function labelFromScore(score) {
   if (score >= 76) return 'Very High';
   if (score >= 56) return 'High';
@@ -192,18 +198,13 @@ function labelFromScore(score) {
   return 'Low';
 }
 
-/** Resolve the setting string to the exact Anthropic model identifier. */
 function resolveModelId(model) {
   return model === 'opus' ? 'claude-opus-4-6' : 'claude-sonnet-4-6';
 }
 
-/**
- * Recursively strip trailing full stops from every string value in an object.
- * Runs after both Claude calls as a safety net alongside the prompt instruction.
- */
 function stripPeriods(val) {
-  if (typeof val === 'string')      return val.trimEnd().replace(/\.$/, '');
-  if (Array.isArray(val))           return val.map(stripPeriods);
+  if (typeof val === 'string')        return val.trimEnd().replace(/\.$/, '');
+  if (Array.isArray(val))             return val.map(stripPeriods);
   if (val && typeof val === 'object') {
     const out = {};
     for (const [k, v] of Object.entries(val)) out[k] = stripPeriods(v);
@@ -212,39 +213,25 @@ function stripPeriods(val) {
   return val;
 }
 
-/** Crude but fast token estimator — 1 token ≈ 4 chars. */
 function truncateToTokens(str, maxTokens) {
   return typeof str === 'string' ? str.slice(0, maxTokens * 4) : '';
 }
 
-/** Strip markdown code fences Claude may emit despite instructions. */
 function stripFences(text) {
   return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
 }
 
-// ── Tavily ────────────────────────────────────────────────────────────────
+// ── Tavily ────────────────────────────────────────────────────────────────────
 
 const TAVILY_FALLBACK =
   '[No company-specific signals found — apply sector-level inference as per Stage 1 fallback instructions]';
 
-/**
- * Single Tavily search. Returns the raw API response object or null on failure.
- * The API key is used in the Authorization header and never echoed anywhere.
- */
 async function tavilySearch(query, apiKey) {
   try {
     const res = await fetch('https://api.tavily.com/search', {
       method:  'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify({
-        query,
-        search_depth:   'basic',
-        include_answer: 'advanced',
-        max_results:    5,
-      }),
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ query, search_depth: 'basic', include_answer: 'advanced', max_results: 5 }),
     });
     if (res.status === 401 || res.status === 403) throw new Error('TAVILY_AUTH_ERROR');
     if (!res.ok) throw new Error('TAVILY_ERROR');
@@ -255,71 +242,25 @@ async function tavilySearch(query, apiKey) {
   }
 }
 
-/**
- * Run all nine Tavily searches in parallel, apply URL deduplication, apply
- * relevance filtering, assemble and return the full context string for Claude.
- */
 async function gatherContext(companyName, tavilyKey) {
   const yr  = new Date().getFullYear();
   const pyr = yr - 1;
 
-  // Each entry: label shown in the [SIGNAL:] block, query, fallback token limit
   const searches = [
-    {
-      label:   'Business Strategy and Technology Priorities',
-      query:   `${companyName} technology strategy priorities ${pyr} ${yr}`,
-      fbTok:   800,
-    },
-    {
-      label:   'Regulatory and Compliance Obligations',
-      query:   `${companyName} regulatory compliance cybersecurity data protection obligations`,
-      fbTok:   800,
-    },
-    {
-      label:   'Cloud and IT Infrastructure',
-      query:   `${companyName} cloud infrastructure data center architecture IT systems`,
-      fbTok:   800,
-    },
-    {
-      // Search 4 — higher fallback token budget per spec
-      label:   'Enterprise Systems and Legacy Applications',
-      query:   `${companyName} enterprise systems billing ERP CRM operations deployment`,
-      fbTok:   1200,
-    },
-    {
-      label:   'Security Architecture and Operations',
-      query:   `${companyName} cybersecurity security operations threat detection incident response`,
-      fbTok:   800,
-    },
-    {
-      label:   'AI Data and Analytics Maturity',
-      query:   `${companyName} artificial intelligence data platform analytics machine learning`,
-      fbTok:   800,
-    },
-    {
-      label:   'Microsoft and Enterprise Software Footprint',
-      query:   `${companyName} Microsoft 365 enterprise software licensing deployment`,
-      fbTok:   800,
-    },
-    {
-      label:   'Workforce Operations and Scale',
-      query:   `${companyName} workforce employees operations regional scale`,
-      fbTok:   800,
-    },
-    {
-      label:   'Contact Centre and Customer Operations',
-      query:   `${companyName} contact centre customer service operations platform`,
-      fbTok:   800,
-    },
+    { label: 'Business Strategy and Technology Priorities',  query: `${companyName} technology strategy priorities ${pyr} ${yr}`,                      fbTok: 800  },
+    { label: 'Regulatory and Compliance Obligations',        query: `${companyName} regulatory compliance cybersecurity data protection obligations`,     fbTok: 800  },
+    { label: 'Cloud and IT Infrastructure',                  query: `${companyName} cloud infrastructure data center architecture IT systems`,            fbTok: 800  },
+    { label: 'Enterprise Systems and Legacy Applications',   query: `${companyName} enterprise systems billing ERP CRM operations deployment`,            fbTok: 1200 },
+    { label: 'Security Architecture and Operations',         query: `${companyName} cybersecurity security operations threat detection incident response`, fbTok: 800  },
+    { label: 'AI Data and Analytics Maturity',               query: `${companyName} artificial intelligence data platform analytics machine learning`,    fbTok: 800  },
+    { label: 'Microsoft and Enterprise Software Footprint',  query: `${companyName} Microsoft 365 enterprise software licensing deployment`,              fbTok: 800  },
+    { label: 'Workforce Operations and Scale',               query: `${companyName} workforce employees operations regional scale`,                       fbTok: 800  },
+    { label: 'Contact Centre and Customer Operations',       query: `${companyName} contact centre customer service operations platform`,                 fbTok: 800  },
   ];
 
-  // ── Run all nine in parallel ─────────────────────────────────────────────
   const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey)));
 
-  // ── URL deduplication ────────────────────────────────────────────────────
-  // Each URL is assigned to the section where it scores highest.
-  // When we fall back to result content, only use a result if this section owns it.
-  const urlOwner = new Map(); // url → { sectionIdx, score }
+  const urlOwner = new Map();
   raw.forEach((res, sIdx) => {
     if (!res?.results) return;
     res.results.forEach(r => {
@@ -329,22 +270,16 @@ async function gatherContext(companyName, tavilyKey) {
     });
   });
 
-  // ── Assemble signal blocks ───────────────────────────────────────────────
   const blocks = raw.map((res, i) => {
     const { label, fbTok } = searches[i];
     const header = `[SIGNAL: ${label}]`;
-
-    // Primary: LLM-synthesised answer (include_answer: "advanced")
     if (res?.answer?.trim()) return `${header}\n${res.answer.trim()}`;
-
-    // Fallback: first result whose URL is owned by this section and passes relevance filter
     if (res?.results) {
       const candidate = res.results.find(
         r => r.score >= 0.4 && urlOwner.get(r.url)?.sectionIdx === i && r.content,
       );
       if (candidate) return `${header}\n${truncateToTokens(candidate.content, fbTok)}`;
     }
-
     return `${header}\n${TAVILY_FALLBACK}`;
   });
 
@@ -357,13 +292,8 @@ async function gatherContext(companyName, tavilyKey) {
   ].join('\n');
 }
 
-// ── Anthropic ─────────────────────────────────────────────────────────────
+// ── Anthropic ─────────────────────────────────────────────────────────────────
 
-/**
- * Single call to the Anthropic Messages API.
- * Returns the raw text content of the first text block.
- * The API key is transmitted in x-api-key only and never stored or logged.
- */
 async function claudeCall(systemPrompt, userContent, apiKey, model) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
@@ -390,13 +320,13 @@ async function claudeCall(systemPrompt, userContent, apiKey, model) {
   return stripFences(text);
 }
 
-// ── Prompt builders ───────────────────────────────────────────────────────
+// ── Prompt builder ────────────────────────────────────────────────────────────
 
 function buildProfilePrompt(companyName, context, ownedProducts) {
-  const ownedSet        = new Set(ownedProducts);
-  const unowned         = PRODUCTS.filter(p => !ownedSet.has(p.name));
-  const unownedStr      = unowned.map(p => `${p.name} (${p.category})`).join(', ');
-  const ownedStr        = ownedProducts.length ? ownedProducts.join(', ') : 'None';
+  const ownedSet   = new Set(ownedProducts);
+  const unowned    = PRODUCTS.filter(p => !ownedSet.has(p.name));
+  const unownedStr = unowned.map(p => `${p.name} (${p.category})`).join(', ');
+  const ownedStr   = ownedProducts.length ? ownedProducts.join(', ') : 'None';
 
   const system = `You are a senior Microsoft enterprise sales strategist with 15 years of \
 experience closing complex deals across the Gulf, Levant, and North Africa. \
@@ -509,14 +439,11 @@ ${context}`;
   return { system, user };
 }
 
-// ── Pipeline orchestrator ─────────────────────────────────────────────────
+// ── Pipeline ──────────────────────────────────────────────────────────────────
 
 async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey, model }) {
-
-  // Step 1 — Nine Tavily searches in parallel
   const context = await gatherContext(companyName, tavilyKey);
 
-  // Step 2 — Claude: company profile + propensity scores
   const { system: sys1, user: user1 } = buildProfilePrompt(companyName, context, ownedProducts);
   const raw1 = await claudeCall(sys1, user1, anthropicKey, model);
 
@@ -530,13 +457,11 @@ async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey
     throw new Error('Something went wrong — Claude response is missing required fields');
   }
 
-  // Normalise labels to the canonical score bands — overrides whatever Claude emits
   const productScores = call1.productScores.map(ps => ({
     ...ps,
     label: labelFromScore(Number(ps.score) || 0),
   }));
 
-  // Strip trailing full stops from all string values
   return {
     companyProfile: stripPeriods(call1.companyProfile),
     productScores:  stripPeriods(productScores),
@@ -544,27 +469,16 @@ async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey
   };
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers: { Allow: 'POST', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+  if (event.httpMethod !== 'POST') return;
 
-  // Parse body
   let body;
   try {
     body = JSON.parse(event.body || '{}');
   } catch {
-    return {
-      statusCode: 400,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Request body must be valid JSON' }),
-    };
+    return;
   }
 
   const {
@@ -572,48 +486,41 @@ exports.handler = async (event) => {
     ownedProducts = [],
     anthropicKey,
     tavilyKey,
-    model = 'sonnet',
+    model      = 'sonnet',
+    customerId,
   } = body;
 
-  // Validate required fields.
-  // Keys are checked for presence only — their values are never logged.
-  if (!companyName?.trim())
-    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'companyName is required' }) };
-  if (!anthropicKey?.trim())
-    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Something went wrong — input Anthropic API details and try again' }) };
-  if (!tavilyKey?.trim())
-    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Something went wrong — input Tavily API details and try again' }) };
+  // customerId is the Blobs key — without it the poller can never retrieve the result
+  if (!customerId?.trim()) return;
+
+  const store = getStore({ name: BLOB_STORE, consistency: 'strong' });
+
+  // Validate — write errors to Blobs so the poller surfaces them to the user
+  if (!companyName?.trim()) {
+    await store.set(customerId, JSON.stringify({ status: 'error', error: 'companyName is required' }));
+    return;
+  }
+  if (!anthropicKey?.trim()) {
+    await store.set(customerId, JSON.stringify({ status: 'error', error: 'Something went wrong — input Anthropic API details and try again' }));
+    return;
+  }
+  if (!tavilyKey?.trim()) {
+    await store.set(customerId, JSON.stringify({ status: 'error', error: 'Something went wrong — input Tavily API details and try again' }));
+    return;
+  }
 
   try {
     const result = await runPipeline({
       companyName:   companyName.trim(),
       ownedProducts: Array.isArray(ownedProducts) ? ownedProducts : [],
-      anthropicKey:  anthropicKey.trim(),    // used in-memory, never stored or logged
-      tavilyKey:     tavilyKey.trim(),       // used in-memory, never stored or logged
+      anthropicKey:  anthropicKey.trim(),
+      tavilyKey:     tavilyKey.trim(),
       model:         ['sonnet', 'opus'].includes(model) ? model : 'sonnet',
     });
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result),
-    };
+    await store.set(customerId, JSON.stringify({ status: 'complete', result }));
   } catch (err) {
-    // err.message is safe to surface — it is constructed internally and never
-    // contains API key material or raw API response bodies.
-    const errMessages = {
-      ANTHROPIC_AUTH_ERROR:       'Something went wrong — incorrect Anthropic API details, input correct details and try again',
-      ANTHROPIC_PAYMENT_ERROR:    'Something went wrong — check your Anthropic account and try again',
-      ANTHROPIC_RATE_LIMIT_ERROR: 'Something went wrong — Anthropic rate limit exceeded, try again',
-      ANTHROPIC_SERVER_ERROR:     'Something went wrong — Anthropic service error, try again',
-      TAVILY_AUTH_ERROR:          'Something went wrong — incorrect Tavily API details, input correct details and try again',
-      TAVILY_ERROR:               'Something went wrong — check your Tavily account and try again',
-    };
-    const userMsg = errMessages[err.message] || err.message || 'Something went wrong — try again';
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: userMsg }),
-    };
+    const userMsg = ERROR_MESSAGES[err.message] || err.message || 'Something went wrong — try again';
+    await store.set(customerId, JSON.stringify({ status: 'error', error: userMsg }));
   }
 };
