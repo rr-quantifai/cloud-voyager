@@ -400,28 +400,31 @@ function CustomerListPage() {
   // ── API keys ──────────────────────────────────────────────
   const [anthropicKey, setAnthropicKey] = useState('')
   const [tavilyKey,    setTavilyKey]    = useState('')
+  const [netlifyKey,   setNetlifyKey]   = useState('')
   const [keysSaved,    setKeysSaved]    = useState(false)
 
   useEffect(() => {
     getSettings().then(s => {
       if (s.anthropic) setAnthropicKey(s.anthropic)
       if (s.tavily)    setTavilyKey(s.tavily)
-      setKeysSaved(!!(s.anthropic?.trim() && s.tavily?.trim()))
+      if (s.netlify)   setNetlifyKey(s.netlify)
+      setKeysSaved(!!(s.anthropic?.trim() && s.tavily?.trim() && s.netlify?.trim()))
     })
   }, [])
 
   async function handleSaveKeys() {
-    if (!anthropicKey.trim() || !tavilyKey.trim()) return
+    if (!anthropicKey.trim() || !tavilyKey.trim() || !netlifyKey.trim()) return
     const s = await getSettings()
-    await saveSettings({ ...s, anthropic: anthropicKey.trim(), tavily: tavilyKey.trim() })
+    await saveSettings({ ...s, anthropic: anthropicKey.trim(), tavily: tavilyKey.trim(), netlify: netlifyKey.trim() })
     setKeysSaved(true)
   }
 
   async function handleClearKeys() {
     const s = await getSettings()
-    await saveSettings({ ...s, anthropic: '', tavily: '' })
+    await saveSettings({ ...s, anthropic: '', tavily: '', netlify: '' })
     setAnthropicKey('')
     setTavilyKey('')
+    setNetlifyKey('')
     setKeysSaved(false)
   }
 
@@ -645,10 +648,20 @@ function CustomerListPage() {
           className={`${inputBase} w-44 ${keysSaved ? inputSaved : inputNormal}`}
         />
 
+        {/* Netlify key */}
+        <input
+          type="text"
+          value={netlifyKey}
+          readOnly={keysSaved}
+          onChange={e => setNetlifyKey(e.target.value)}
+          placeholder="Netlify API Key"
+          className={`${inputBase} w-44 ${keysSaved ? inputSaved : inputNormal}`}
+        />
+
         {/* Save */}
         <button
           onClick={handleSaveKeys}
-          disabled={keysSaved || !anthropicKey.trim() || !tavilyKey.trim()}
+          disabled={keysSaved || !anthropicKey.trim() || !tavilyKey.trim() || !netlifyKey.trim()}
           className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors`}
         >
           Save
@@ -950,10 +963,12 @@ async function analyzeCustomer(customer) {
 
   const anthropicKey = keys.anthropic?.trim()
   const tavilyKey    = keys.tavily?.trim()
+  const netlifyKey   = keys.netlify?.trim()
   const model        = keys.model ?? 'sonnet'
 
   if (!anthropicKey) throw new Error('Something went wrong — input Anthropic API details and try again')
   if (!tavilyKey)    throw new Error('Something went wrong — input Tavily API details and try again')
+  if (!netlifyKey)   throw new Error('Something went wrong — input Netlify API details and try again')
 
   const payload = {
     customerId:    customer.id,
@@ -962,6 +977,7 @@ async function analyzeCustomer(customer) {
     model,
     anthropicKey,
     tavilyKey,
+    netlifyKey,
   }
 
   // Step 1 — Trigger the background function (returns 202 immediately)
@@ -988,7 +1004,7 @@ async function analyzeCustomer(customer) {
 
     let pollRes
     try {
-      pollRes = await fetch(`/fn/analyze-status?customerId=${encodeURIComponent(customer.id)}`)
+      pollRes = await fetch(`/fn/analyze-status?customerId=${encodeURIComponent(customer.id)}&netlifyToken=${encodeURIComponent(netlifyKey)}`)
     } catch {
       continue // Transient network error — keep polling
     }

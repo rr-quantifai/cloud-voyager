@@ -21,17 +21,19 @@ exports.handler = async (event) => {
     };
   }
 
-  const customerId = event.queryStringParameters?.customerId?.trim();
-  if (!customerId) {
+  const customerId    = event.queryStringParameters?.customerId?.trim();
+  const netlifyToken  = event.queryStringParameters?.netlifyToken?.trim();
+
+  if (!customerId || !netlifyToken) {
     return {
       statusCode: 400,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'customerId query parameter is required' }),
+      body: JSON.stringify({ error: 'customerId and netlifyToken query parameters are required' }),
     };
   }
 
   try {
-    const store = getStore({ name: BLOB_STORE, consistency: 'strong' });
+    const store = getStore({ name: BLOB_STORE, consistency: 'strong', siteID: process.env.SITE_ID, token: netlifyToken });
     const raw   = await store.get(customerId);
 
     // Not ready yet — background function still running

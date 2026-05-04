@@ -167,7 +167,7 @@ export async function deleteAnalysesForCustomer(customerId) {
 export async function getSettings() {
   const db = await getDB()
   const row = await db.get(STORES.SETTINGS, SETTINGS_KEY)
-  return row?.value ?? { anthropic: '', tavily: '', model: 'sonnet' }
+  return row?.value ?? { anthropic: '', tavily: '', netlify: '', model: 'sonnet' }
 }
 
 /**

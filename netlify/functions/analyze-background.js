@@ -486,14 +486,17 @@ exports.handler = async (event) => {
     ownedProducts = [],
     anthropicKey,
     tavilyKey,
+    netlifyKey,
     model      = 'sonnet',
     customerId,
   } = body;
 
-  // customerId is the Blobs key — without it the poller can never retrieve the result
+  // customerId and netlifyKey are required to initialise the store —
+  // without them there is nowhere to write errors, so return early
   if (!customerId?.trim()) return;
+  if (!netlifyKey?.trim()) return;
 
-  const store = getStore({ name: BLOB_STORE, consistency: 'strong' });
+  const store = getStore({ name: BLOB_STORE, consistency: 'strong', siteID: process.env.SITE_ID, token: netlifyKey.trim() });
 
   // Validate — write errors to Blobs so the poller surfaces them to the user
   if (!companyName?.trim()) {
