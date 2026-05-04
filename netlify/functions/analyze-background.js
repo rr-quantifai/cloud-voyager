@@ -407,16 +407,10 @@ UNOWNED PRODUCTS (use exact names): ${unownedStr}
 
 itMaturityLevel must be exactly one of: High, Moderate, Low.
 dataConfidence must be exactly one of: High, Medium, Low.
-Use sentence case for all text fields. Do not end any field with a full stop.
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
   "website": "",
-  "industry": "",
-  "subIndustry": "",
-  "estimatedSize": "",
-  "hqLocation": "",
-  "operatingRegions": [],
   "currentTechStack": [],
   "unconfirmedMicrosoftProducts": [],
   "itMaturityLevel": "",
