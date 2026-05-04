@@ -254,7 +254,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
               <span className="text-slate-300">·</span>
               {!isEdit && idError
                 ? <span className="text-xs text-rose-600">{idError}</span>
-                : <span className="text-xs text-slate-400">As per Cloud Quarks</span>
+                : <span className="text-xs text-slate-400">Fill mandatory field</span>
               }
             </div>
             {isEdit ? (
@@ -290,7 +290,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
                       Dismiss
                     </button>
                   </>
-                : <span className="text-xs text-slate-400">As per Cloud Quarks</span>
+                : <span className="text-xs text-slate-400">Fill mandatory field</span>
               }
             </div>
             <input
@@ -1127,7 +1127,10 @@ function NavBar() {
             </svg>
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">Cloud Voyager</h1>
+            <div className="flex items-center gap-1.5">
+  <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">Cloud Voyager</h1>
+  <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 leading-none">MEA</span>
+</div>
             <p className="text-xs text-slate-400 leading-tight">Actionable sales insights</p>
           </div>
         </div>
