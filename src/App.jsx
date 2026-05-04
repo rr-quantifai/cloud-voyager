@@ -141,12 +141,12 @@ function AnalysisStrip({ state, onClear }) {
 
 // ── CustomerModal (create + edit) ─────────────────────────────────────────────
 
-function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
+function CustomerModal({ mode = 'create', customer = null, preSelectedProducts = null, onClose, onSaved }) {
   const isEdit = mode === 'edit'
 
   const [customerId,       setCustomerId]       = useState(isEdit ? customer.id   : '')
   const [customerName,     setCustomerName]     = useState(isEdit ? customer.name : '')
-  const [selectedProducts, setSelectedProducts] = useState(isEdit ? (customer.ownedProducts ?? []) : [])
+  const [selectedProducts, setSelectedProducts] = useState(isEdit ? (preSelectedProducts ?? customer.ownedProducts ?? []) : [])
   const [idError,          setIdError]          = useState(null)
   const [nameWarning,      setNameWarning]      = useState(null)
   const [nameDismissed,    setNameDismissed]    = useState(false)
@@ -963,7 +963,8 @@ function CustomerDetailPage() {
         {editModal && (
           <CustomerModal
             mode="edit"
-            customer={editModal}
+            customer={customer}
+            preSelectedProducts={editModal.ownedProducts}
             onClose={() => setEditModal(null)}
             onSaved={() => { setEditModal(null); navigate('/') }}
           />

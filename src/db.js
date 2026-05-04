@@ -162,7 +162,7 @@ export async function deleteAnalysesForCustomer(customerId) {
 
 /**
  * Returns the stored API key settings, or sensible defaults if not set.
- * @returns {Promise<{ anthropic: string, tavily: string, model: 'sonnet'|'opus' }>}
+ * @returns {Promise<{ anthropic: string, tavily: string, netlify: string, model: 'sonnet'|'opus' }>}
  */
 export async function getSettings() {
   const db = await getDB()
