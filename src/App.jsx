@@ -17,10 +17,7 @@ import {
   CATEGORIES,
   PRODUCTS_BY_CATEGORY,
   CATEGORY_CLASSES,
-  computeCategoryStages,
   BUTTON_H,
-  DEMO_CUSTOMERS,
-  DEMO_IDS,
 } from './constants.js'
 
 import {
@@ -43,13 +40,9 @@ import {
 const useStore = create((set) => ({
   searchQuery:       '',
   totalCustomers:    0,
-  demoMode:          false,
-  demoAnalyses:      {},
   analysisState:     null,
   setSearchQuery:    (searchQuery) => set({ searchQuery }),
   setTotalCustomers: (totalCustomers) => set({ totalCustomers }),
-  setDemoMode:       (demoMode) => set({ demoMode }),
-  setDemoAnalysis:   (customerId, analysis) => set(s => ({ demoAnalyses: { ...s.demoAnalyses, [customerId]: analysis } })),
   setAnalysisState:  (fn) => set(s => ({ analysisState: typeof fn === 'function' ? fn(s.analysisState) : fn })),
 }))
 
@@ -57,7 +50,7 @@ const useStore = create((set) => ({
 // SECTION 2 — CUSTOMER LIST PAGE
 // ============================================================
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Format ISO string to DD-MMM-YY HH:MM:SS in Gulf Standard Time (UTC+4). */
 function formatGST(iso) {
@@ -307,9 +300,7 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
               placeholder="e.g. Emirates NBD"
               className={[
                 'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
-                nameWarning && !nameDismissed
-                  ? 'border-amber-300'
-                  : 'border-slate-200',
+                nameWarning && !nameDismissed ? 'border-amber-300' : 'border-slate-200',
               ].join(' ')}
             />
           </div>
@@ -373,15 +364,12 @@ function CustomerModal({ mode = 'create', customer = null, onClose, onSaved }) {
   , document.body)
 }
 
-// ── CustomerListPage ─────────────────────────────────────────────────────────
+// ── CustomerListPage ──────────────────────────────────────────────────────────
 
 function CustomerListPage() {
   const searchQuery       = useStore(s => s.searchQuery)
   const setSearchQuery    = useStore(s => s.setSearchQuery)
   const setTotalCustomers = useStore(s => s.setTotalCustomers)
-  const demoMode          = useStore(s => s.demoMode)
-  const demoAnalyses      = useStore(s => s.demoAnalyses)
-  const setDemoAnalysis   = useStore(s => s.setDemoAnalysis)
   const analysisState     = useStore(s => s.analysisState)
   const setAnalysisState  = useStore(s => s.setAnalysisState)
 
@@ -409,25 +397,7 @@ function CustomerListPage() {
   const [dateSortCol, setDateSortCol] = useState(null)
   const [dateSortDir, setDateSortDir] = useState('desc')
 
-  const baseRows = useMemo(() => {
-    const demoRows = demoMode ? DEMO_CUSTOMERS.map(c => ({
-      ...c,
-      categoryStages:   computeCategoryStages(c.ownedProducts),
-      analysisComplete: !!demoAnalyses[c.id],
-      lastAnalyzed:     demoAnalyses[c.id]?.analyzedAt ?? null,
-    })) : []
-    return [...demoRows, ...enriched]
-  }, [demoMode, demoAnalyses, enriched])
-
-  useEffect(() => {
-    setAnalysisState(null)
-    setSearchQuery('')
-    setDateSortCol(null)
-    setDateSortDir('desc')
-  }, [demoMode])
-
   // ── API keys ──────────────────────────────────────────────
-
   const [anthropicKey, setAnthropicKey] = useState('')
   const [tavilyKey,    setTavilyKey]    = useState('')
   const [keysSaved,    setKeysSaved]    = useState(false)
@@ -456,7 +426,7 @@ function CustomerListPage() {
   }
 
   // ── Modal ─────────────────────────────────────────────────
-  const [modalState, setModalState] = useState(null) // null | {mode:'create'} | {mode:'edit', customer}
+  const [modalState, setModalState] = useState(null)
 
   // ── Analysis ──────────────────────────────────────────────
   const phaseTimers = useRef([])
@@ -485,25 +455,6 @@ function CustomerListPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setAnalysisState({ customerId: customer.id, phase: 'initializing' })
 
-    if (DEMO_IDS.has(customer.id)) {
-      phaseTimers.current = [
-        setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),   800),
-        setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude' } : s),  2500),
-      ]
-      try {
-        await analyzeDemoCustomer(customer, setDemoAnalysis)
-        phaseTimers.current.forEach(clearTimeout)
-        setAnalysisState({ customerId: customer.id, phase: 'complete' })
-      } catch (err) {
-        phaseTimers.current.forEach(clearTimeout)
-        const errorMessage = err.message
-          ? `${customer.id}: ${err.message}`
-          : `${customer.id}: Something went wrong — try again`
-        setAnalysisState({ customerId: customer.id, phase: 'error', errorMessage })
-      }
-      return
-    }
-
     phaseTimers.current = [
       setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),  1500),
       setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude' } : s), 13500),
@@ -521,21 +472,21 @@ function CustomerListPage() {
         : `${customer.id}: Something went wrong — try again`
       setAnalysisState({ customerId: customer.id, phase: 'error', errorMessage })
     }
-  }, [loadData, setDemoAnalysis])
+  }, [loadData])
 
   // ── Search + filter ───────────────────────────────────────
   const fuse = useMemo(
-    () => new Fuse(baseRows, { keys: ['name'], threshold: 0.35, includeScore: true }),
-    [baseRows]
+    () => new Fuse(enriched, { keys: ['name'], threshold: 0.35, includeScore: true }),
+    [enriched]
   )
 
   const filtered = useMemo(() => {
     const q = searchQuery.trim()
-    if (!q) return baseRows
-    const byId = baseRows.filter(c => c.id.toLowerCase() === q.toLowerCase())
+    if (!q) return enriched
+    const byId = enriched.filter(c => c.id.toLowerCase() === q.toLowerCase())
     if (byId.length) return byId
     return fuse.search(q).map(r => r.item)
-  }, [searchQuery, baseRows, fuse])
+  }, [searchQuery, enriched, fuse])
 
   const sortedFiltered = useMemo(() => {
     if (!dateSortCol) return filtered
@@ -548,9 +499,9 @@ function CustomerListPage() {
 
   const sortableDateCols = useMemo(() =>
     new Set(['createdAt', 'updatedAt', 'lastAnalyzed'].filter(col =>
-      filtered.length > 1 && baseRows.some(r => r[col])
+      filtered.length > 1 && enriched.some(r => r[col])
     ))
-  , [baseRows, filtered])
+  , [enriched, filtered])
 
   // ── Table columns ─────────────────────────────────────────
   const columns = useMemo(() => [
@@ -617,14 +568,14 @@ function CustomerListPage() {
             </button>
             <button
               onClick={() => setModalState({ mode: 'edit', customer: c })}
-              disabled={DEMO_IDS.has(c.id) || (isAnalyzing && analysisState?.customerId === c.id)}
+              disabled={isAnalyzing && analysisState?.customerId === c.id}
               className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-slate-100 text-slate-600 enabled:hover:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-colors`}
             >
               Edit
             </button>
             <button
               onClick={async () => { await deleteCustomer(c.id); await loadData() }}
-              disabled={DEMO_IDS.has(c.id) || (isAnalyzing && analysisState?.customerId === c.id)}
+              disabled={isAnalyzing && analysisState?.customerId === c.id}
               className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-rose-50 text-rose-600 enabled:hover:bg-rose-100 disabled:text-rose-300 disabled:cursor-not-allowed transition-colors`}
             >
               Delete
@@ -659,7 +610,7 @@ function CustomerListPage() {
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="Search by ID or name..."
-          disabled={baseRows.length === 0}
+          disabled={enriched.length === 0}
           className="flex-1 h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
         />
 
@@ -735,18 +686,18 @@ function CustomerListPage() {
               {table.getHeaderGroups().map(hg => (
                 <tr key={hg.id}>
                   {hg.headers.map(h => {
-                const isDateCol = sortableDateCols.has(h.column.id)
-                const isActive  = dateSortCol === h.column.id
-                return (
-                  <th
-                    key={h.id}
-                    onClick={isDateCol ? () => cycleDateSort(h.column.id) : undefined}
-                    className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${isDateCol ? 'cursor-pointer select-none' : ''} ${isActive ? (dateSortDir === 'desc' ? 'text-blue-600' : 'text-rose-500') : 'text-slate-500'}`}
-                  >
-                    {flexRender(h.column.columnDef.header, h.getContext())}
-                  </th>
-                )
-              })}
+                    const isDateCol = sortableDateCols.has(h.column.id)
+                    const isActive  = dateSortCol === h.column.id
+                    return (
+                      <th
+                        key={h.id}
+                        onClick={isDateCol ? () => cycleDateSort(h.column.id) : undefined}
+                        className={`px-4 py-2.5 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${isDateCol ? 'cursor-pointer select-none' : ''} ${isActive ? (dateSortDir === 'desc' ? 'text-blue-600' : 'text-rose-500') : 'text-slate-500'}`}
+                      >
+                        {flexRender(h.column.columnDef.header, h.getContext())}
+                      </th>
+                    )
+                  })}
                 </tr>
               ))}
             </thead>
@@ -754,7 +705,7 @@ function CustomerListPage() {
               {table.getRowModel().rows.map(row => (
                 <tr key={row.id} className="hover:bg-slate-50 transition-colors">
                   {row.getVisibleCells().map(cell => (
-  <td key={cell.id} className={cell.column.id === 'actions' ? 'px-4 py-4' : 'px-4 py-3'}>
+                    <td key={cell.id} className={cell.column.id === 'actions' ? 'px-4 py-4' : 'px-4 py-3'}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -783,9 +734,9 @@ function CustomerListPage() {
 // SECTION 3 — CUSTOMER DETAIL PAGE
 // ============================================================
 
-const ALL_MS_PRODUCTS = new Set(Object.values(PRODUCTS_BY_CATEGORY).flat())
+const ALL_MS_PRODUCTS  = new Set(Object.values(PRODUCTS_BY_CATEGORY).flat())
 const PRODUCT_CATEGORY = Object.fromEntries(Object.entries(PRODUCTS_BY_CATEGORY).flatMap(([cat, prods]) => prods.map(p => [p, cat])))
-const CATALOGUE_ORDER = Object.values(PRODUCTS_BY_CATEGORY).flat()
+const CATALOGUE_ORDER  = Object.values(PRODUCTS_BY_CATEGORY).flat()
 
 const LABEL_CLS = {
   'Very High': 'bg-emerald-100 text-emerald-700',
@@ -807,16 +758,15 @@ const MATURITY_CLS = {
 }
 
 function CompanyProfile({ profile, ownedProducts }) {
-
   const techStack = profile.currentTechStack || []
-  const msOwned = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
-  const msFound = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
-  const nonMs   = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
+  const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
+  const msFound   = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
+  const nonMs     = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
 
   return (
     <div className="space-y-4">
 
-      {/* Data Confidence table */}
+      {/* Data Confidence */}
       <div className="bg-white border border-slate-200 rounded">
         <div className="flex items-center gap-3 px-4 py-4">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Data confidence</span>
@@ -828,7 +778,7 @@ function CompanyProfile({ profile, ownedProducts }) {
         </div>
       </div>
 
-      {/* IT Maturity table */}
+      {/* IT Maturity */}
       <div className="bg-white border border-slate-200 rounded">
         <div className="flex items-center gap-3 px-4 py-4">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">IT maturity</span>
@@ -917,7 +867,6 @@ function CustomerDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const demoAnalyses    = useStore(s => s.demoAnalyses)
   const setAnalysisState = useStore(s => s.setAnalysisState)
 
   const [customer, setCustomer] = useState(null)
@@ -926,44 +875,27 @@ function CustomerDetailPage() {
 
   const loadData = useCallback(async () => {
     try {
-      if (DEMO_IDS.has(id)) {
-        const dc = DEMO_CUSTOMERS.find(d => d.id === id)
-        if (!dc) {
-          setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — customer not found, try again` })
-          navigate('/')
-          return
-        }
-        const a = demoAnalyses[id] || null
-        if (!a) {
-          setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — profile not found, analyze and try again` })
-          navigate('/')
-          return
-        }
-        setCustomer({ ...dc, categoryStages: computeCategoryStages(dc.ownedProducts), analysisComplete: true })
-        setAnalysis(a)
-      } else {
-        const c = await getCustomer(id)
-        if (!c) {
-          setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — customer not found, try again` })
-          navigate('/')
-          return
-        }
-        if (!c.analysisComplete) {
-          setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — profile not found, analyze and try again` })
-          navigate('/')
-          return
-        }
-        const a = await getLatestAnalysis(id)
-        setCustomer(c)
-        setAnalysis(a || null)
+      const c = await getCustomer(id)
+      if (!c) {
+        setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — customer not found, try again` })
+        navigate('/')
+        return
       }
+      if (!c.analysisComplete) {
+        setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — profile not found, analyze and try again` })
+        navigate('/')
+        return
+      }
+      const a = await getLatestAnalysis(id)
+      setCustomer(c)
+      setAnalysis(a || null)
     } catch {
       setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — could not load customer data, try again` })
       navigate('/')
     } finally {
       setLoading(false)
     }
-  }, [id, demoAnalyses, navigate, setAnalysisState])
+  }, [id, navigate, setAnalysisState])
 
   useEffect(() => { loadData() }, [loadData])
 
@@ -1007,25 +939,21 @@ function CustomerDetailPage() {
 // SECTION 4 — API CLIENT
 // ============================================================
 
-// analyzeDemoCustomer — NO CHANGES, keep exactly as-is
-
-// ── analyzeCustomer — REPLACE the entire existing function with this ──────────
-
 async function analyzeCustomer(customer) {
-  let keys;
+  let keys
   try {
-    const settings = await getSettings();
-    keys = settings ?? {};
+    const settings = await getSettings()
+    keys = settings ?? {}
   } catch {
-    throw new Error('Something went wrong — could not read API keys, try reloading the app');
+    throw new Error('Something went wrong — could not read API keys, try reloading the app')
   }
 
-  const anthropicKey = keys.anthropic?.trim();
-  const tavilyKey    = keys.tavily?.trim();
-  const model        = keys.model ?? 'sonnet';
+  const anthropicKey = keys.anthropic?.trim()
+  const tavilyKey    = keys.tavily?.trim()
+  const model        = keys.model ?? 'sonnet'
 
-  if (!anthropicKey) throw new Error('Something went wrong — input Anthropic API details and try again');
-  if (!tavilyKey)    throw new Error('Something went wrong — input Tavily API details and try again');
+  if (!anthropicKey) throw new Error('Something went wrong — input Anthropic API details and try again')
+  if (!tavilyKey)    throw new Error('Something went wrong — input Tavily API details and try again')
 
   const payload = {
     customerId:    customer.id,
@@ -1034,7 +962,7 @@ async function analyzeCustomer(customer) {
     model,
     anthropicKey,
     tavilyKey,
-  };
+  }
 
   // Step 1 — Trigger the background function (returns 202 immediately)
   try {
@@ -1042,53 +970,51 @@ async function analyzeCustomer(customer) {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
-    });
-    // 202 = accepted by background function, anything else is unexpected
+    })
     if (triggerRes.status !== 202) {
-      throw new Error(`Something went wrong — analysis trigger returned HTTP ${triggerRes.status}, check with developer`);
+      throw new Error(`Something went wrong — analysis trigger returned HTTP ${triggerRes.status}, check with developer`)
     }
   } catch (err) {
-    if (err.message.startsWith('Something went wrong')) throw err;
-    throw new Error('Something went wrong — network error, check your connection and try again');
+    if (err.message.startsWith('Something went wrong')) throw err
+    throw new Error('Something went wrong — network error, check your connection and try again')
   }
 
   // Step 2 — Poll /fn/analyze-status every 4 seconds until complete or error
-  const POLL_INTERVAL_MS = 4000;
-  const MAX_POLLS        = 225; // 225 × 4s = 15 minutes, matches background function max runtime
+  const POLL_INTERVAL_MS = 4000
+  const MAX_POLLS        = 225 // 225 × 4s = 15 minutes, matches background function max runtime
 
   for (let i = 0; i < MAX_POLLS; i++) {
-    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
 
-    let pollRes;
+    let pollRes
     try {
-      pollRes = await fetch(`/fn/analyze-status?customerId=${encodeURIComponent(customer.id)}`);
+      pollRes = await fetch(`/fn/analyze-status?customerId=${encodeURIComponent(customer.id)}`)
     } catch {
-      // Transient network error — keep polling
-      continue;
+      continue // Transient network error — keep polling
     }
 
-    if (!pollRes.ok) continue; // Transient server error — keep polling
+    if (!pollRes.ok) continue // Transient server error — keep polling
 
-    let pollData;
+    let pollData
     try {
-      pollData = await pollRes.json();
+      pollData = await pollRes.json()
     } catch {
-      continue;
+      continue
     }
 
-    if (pollData.status === 'pending') continue;
+    if (pollData.status === 'pending') continue
 
     if (pollData.status === 'error') {
-      throw new Error(pollData.error || 'Something went wrong — try again');
+      throw new Error(pollData.error || 'Something went wrong — try again')
     }
 
     if (pollData.status === 'complete') {
-      const { companyProfile, productScores, modelVersion } = pollData.result;
+      const { companyProfile, productScores, modelVersion } = pollData.result
 
       if (!companyProfile)
-        throw new Error('Something went wrong — analysis response missing companyProfile, check with developer');
+        throw new Error('Something went wrong — analysis response missing companyProfile, check with developer')
       if (!Array.isArray(productScores) || !productScores.length)
-        throw new Error('Something went wrong — analysis response missing productScores, check with developer');
+        throw new Error('Something went wrong — analysis response missing productScores, check with developer')
 
       const analysisRecord = {
         id:            crypto.randomUUID(),
@@ -1097,27 +1023,27 @@ async function analyzeCustomer(customer) {
         companyProfile,
         productScores,
         modelVersion:  modelVersion ?? model,
-      };
-
-      try {
-        await deleteAnalysesForCustomer(customer.id);
-        await putAnalysis(analysisRecord);
-      } catch {
-        throw new Error('Something went wrong — analysis completed but could not be saved due to storage issues, check with developer');
       }
 
-      const updatedCustomer = { ...customer, analysisComplete: true, updatedAt: new Date().toISOString() };
       try {
-        await putCustomer(updatedCustomer);
+        await deleteAnalysesForCustomer(customer.id)
+        await putAnalysis(analysisRecord)
       } catch {
-        console.warn('analyzeCustomer: analysis saved but customer record update failed');
+        throw new Error('Something went wrong — analysis completed but could not be saved due to storage issues, check with developer')
       }
 
-      return { customer: updatedCustomer, analysis: analysisRecord };
+      const updatedCustomer = { ...customer, analysisComplete: true, updatedAt: new Date().toISOString() }
+      try {
+        await putCustomer(updatedCustomer)
+      } catch {
+        console.warn('analyzeCustomer: analysis saved but customer record update failed')
+      }
+
+      return { customer: updatedCustomer, analysis: analysisRecord }
     }
   }
 
-  throw new Error('Something went wrong — analysis timed out after 15 minutes, try again');
+  throw new Error('Something went wrong — analysis timed out after 15 minutes, try again')
 }
 
 // ============================================================
@@ -1126,16 +1052,13 @@ async function analyzeCustomer(customer) {
 
 function NavBar() {
   const totalCustomers = useStore(s => s.totalCustomers)
-  const demoMode       = useStore(s => s.demoMode)
-  const setDemoMode    = useStore(s => s.setDemoMode)
 
-  const [model, setModelState] = useState('sonnet')
+  const [model, setModelState]     = useState('sonnet')
   const [settingsReady, setSettingsReady] = useState(false)
 
   useEffect(() => {
     getSettings().then(s => {
       setModelState(s.model ?? 'sonnet')
-      if (s.demoMode) setDemoMode(true)
       setSettingsReady(true)
     })
   }, [])
@@ -1147,12 +1070,7 @@ function NavBar() {
   }
 
   async function handleClearAll() {
-    const preserveDemo = demoMode
     await clearAllData()
-    if (preserveDemo) {
-      const s = await getSettings()
-      await saveSettings({ ...s, demoMode: true })
-    }
     window.location.reload()
   }
 
@@ -1173,24 +1091,6 @@ function NavBar() {
         </div>
 
         <div className={`flex items-center gap-3 transition-opacity duration-150 ${settingsReady ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="flex items-center bg-slate-100 rounded-full p-0.5">
-            <button
-              onClick={async () => { setDemoMode(false); const s = await getSettings(); await saveSettings({ ...s, demoMode: false }) }}
-              className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
-                !demoMode ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Live
-            </button>
-            <button
-              onClick={async () => { setDemoMode(true); const s = await getSettings(); await saveSettings({ ...s, demoMode: true }) }}
-              className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
-                demoMode ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Demo
-            </button>
-          </div>
           <div className="flex items-center bg-slate-100 rounded-full p-0.5">
             <button
               onClick={() => handleModelChange('sonnet')}

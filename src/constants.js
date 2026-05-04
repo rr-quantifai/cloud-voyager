@@ -52,7 +52,7 @@ export const CATEGORY_CLASSES = {
 
 /**
  * Derives categoryStages from a list of owned product names.
- * Active   = ≥1 product owned in the category
+ * Active      = ≥1 product owned in the category
  * Established = all products owned in the category
  * Not Started = none owned
  * @param {string[]} ownedProducts
@@ -62,7 +62,7 @@ export function computeCategoryStages(ownedProducts) {
   const owned = new Set(ownedProducts)
   return Object.fromEntries(
     CATEGORIES.map(cat => {
-      const all = PRODUCTS_BY_CATEGORY[cat]
+      const all        = PRODUCTS_BY_CATEGORY[cat]
       const ownedCount = all.filter(p => owned.has(p)).length
       let stage = 'Not Started'
       if (ownedCount === all.length) stage = 'Established'
@@ -75,25 +75,6 @@ export function computeCategoryStages(ownedProducts) {
 // ─── UI Constants ─────────────────────────────────────────────────────────────
 
 export const BUTTON_H = 'h-9'
-
-export const DEMO_CUSTOMERS = [
-  {
-    id: '000',
-    name: 'Success Corporation LLC',
-    ownedProducts: ['Microsoft 365 E3/E5', 'Microsoft Teams', 'Azure Virtual Machines', 'Microsoft Entra ID'],
-    createdAt: '2100-12-31T12:00:00.000Z',
-    updatedAt: '2100-12-31T12:00:00.000Z',
-  },
-  {
-    id: 'AAA',
-    name: 'Failure Company EST',
-    ownedProducts: [],
-    createdAt: '2100-12-31T12:00:00.000Z',
-    updatedAt: '2100-12-31T12:00:00.000Z',
-  },
-]
-
-export const DEMO_IDS = new Set(['000', 'AAA'])
 
 // ─── IndexedDB Store Names ────────────────────────────────────────────────────
 

@@ -6,9 +6,6 @@
 [functions]
   node_bundler = "esbuild"
 
-[functions."analyze"]
-  timeout = 26
-
 [[redirects]]
   from = "/fn/*"
   to = "/.netlify/functions/:splat"
