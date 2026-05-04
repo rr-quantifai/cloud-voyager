@@ -9,8 +9,6 @@
 //
 // The result (or error) is written to Netlify Blobs.
 // The browser polls /fn/analyze-status to retrieve it.
-//
-// Replaces analyze.js — delete that file after deploying.
 // ============================================================
 
 const { getStore } = require('@netlify/blobs');
@@ -411,6 +409,8 @@ Signals array: populate with each key claim, its source, and confidence:
 Do not end any text field with a full stop.
 Use sentence case for all text fields — proper nouns, product names, company names, regulations, and acronyms are the only exceptions.
 itMaturityLevel must be exactly one of: High, Moderate, Low.
+For currentTechStack, use exact product names from the OWNED PRODUCTS and UNOWNED PRODUCTS lists for any Microsoft products identified (e.g. "Microsoft 365 E3/E5", "Microsoft Teams", "Dynamics 365 Sales"). Use free-form strings only for non-Microsoft products and unconfirmed infrastructure.
+
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {

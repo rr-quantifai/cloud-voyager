@@ -770,7 +770,7 @@ const MATURITY_CLS = {
   Low:      'bg-rose-100 text-rose-700',
 }
 
-function CompanyProfile({ profile, ownedProducts }) {
+function CompanyProfile({ profile, ownedProducts, onUpdateProducts }) {
   const techStack = profile.currentTechStack || []
   const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
   const msFound   = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
@@ -797,6 +797,14 @@ function CompanyProfile({ profile, ownedProducts }) {
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">IT maturity</span>
           <span className="text-slate-300">·</span>
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${MATURITY_CLS[profile.itMaturityLevel] || 'bg-slate-100 text-slate-500'}`}>{profile.itMaturityLevel}</span>
+          <div className="flex-1" />
+          <button
+            onClick={() => onUpdateProducts(msFound)}
+            disabled={msFound.length === 0}
+            className="h-7 px-3 rounded-md text-xs font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+          >
+            Update Product List
+          </button>
         </div>
         <div className="flex items-center gap-3 px-4 py-4 border-t border-slate-200">
           <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap">Products Owned</span>
@@ -882,9 +890,10 @@ function CustomerDetailPage() {
 
   const setAnalysisState = useStore(s => s.setAnalysisState)
 
-  const [customer, setCustomer] = useState(null)
-  const [analysis, setAnalysis] = useState(null)
-  const [loading,  setLoading]  = useState(true)
+  const [customer,    setCustomer]    = useState(null)
+  const [analysis,    setAnalysis]    = useState(null)
+  const [loading,     setLoading]     = useState(true)
+  const [editModal,   setEditModal]   = useState(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -941,7 +950,24 @@ function CustomerDetailPage() {
         </div>
       </div>
       <div className="p-6 space-y-4">
-        <CompanyProfile profile={analysis.companyProfile} ownedProducts={owned} />
+        <CompanyProfile
+          profile={analysis.companyProfile}
+          ownedProducts={owned}
+          onUpdateProducts={(msFound) => {
+            setEditModal({
+              ...customer,
+              ownedProducts: [...new Set([...owned, ...msFound])],
+            })
+          }}
+        />
+        {editModal && (
+          <CustomerModal
+            mode="edit"
+            customer={editModal}
+            onClose={() => setEditModal(null)}
+            onSaved={() => { setEditModal(null); navigate('/') }}
+          />
+        )}
         <PropensityPipeline scores={unownedScores} />
       </div>
     </div>
