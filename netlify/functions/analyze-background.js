@@ -7,8 +7,9 @@
 // Netlify to return 202 immediately and run this handler
 // asynchronously for up to 15 minutes.
 //
-// The result (or error) is written to Netlify Blobs.
-// The browser polls /fn/analyze-status to retrieve it.
+// Routes to Stage 1 or Stage 2 pipeline based on `stage` in
+// the request body. Results are written to Netlify Blobs.
+// The browser polls /fn/analyze-status to retrieve them.
 // ============================================================
 
 const { getStore } = require('@netlify/blobs');
@@ -229,7 +230,7 @@ async function tavilySearch(query, apiKey) {
     const res = await fetch('https://api.tavily.com/search', {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ query, search_depth: 'basic', include_answer: 'advanced', max_results: 5 }),
+      body:    JSON.stringify({ query, search_depth: 'basic', include_answer: 'advanced', max_results: 10 }),
     });
     if (res.status === 401 || res.status === 403) throw new Error('TAVILY_AUTH_ERROR');
     if (!res.ok) throw new Error('TAVILY_ERROR');
@@ -290,6 +291,29 @@ async function gatherContext(companyName, tavilyKey) {
   ].join('\n');
 }
 
+async function gatherVerificationContext(companyName, rawList, tavilyKey) {
+  const searches = [
+    { label: 'Microsoft Software Products and Licensing',  query: `${companyName} Microsoft software products licensing deployment`,    fbTok: 800 },
+    { label: 'Enterprise Systems and Applications',        query: `${companyName} enterprise systems ERP CRM database applications`,    fbTok: 800 },
+    { label: 'Cloud Infrastructure and Technology Stack',  query: `${companyName} cloud infrastructure technology stack architecture`,   fbTok: 800 },
+  ];
+
+  const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey)));
+
+  const blocks = raw.map((res, i) => {
+    const { label, fbTok } = searches[i];
+    const header = `[VERIFICATION: ${label}]`;
+    if (res?.answer?.trim()) return `${header}\n${res.answer.trim()}`;
+    if (res?.results) {
+      const candidate = res.results.find(r => r.score >= 0.4 && r.content);
+      if (candidate) return `${header}\n${truncateToTokens(candidate.content, fbTok)}`;
+    }
+    return `${header}\n${TAVILY_FALLBACK}`;
+  });
+
+  return blocks.join('\n\n');
+}
+
 // ── Anthropic ─────────────────────────────────────────────────────────────────
 
 async function claudeCall(systemPrompt, userContent, apiKey, model) {
@@ -318,9 +342,93 @@ async function claudeCall(systemPrompt, userContent, apiKey, model) {
   return stripFences(text);
 }
 
-// ── Prompt builder ────────────────────────────────────────────────────────────
+// ── Prompt builders ───────────────────────────────────────────────────────────
 
-function buildProfilePrompt(companyName, context, ownedProducts) {
+function buildRawExtractionPrompt(context) {
+  const system = `You are a technology intelligence analyst. Extract technology product and infrastructure names from search results. Return only a flat JSON array of strings. No analysis. No scoring. No explanation.`;
+
+  const user = `Extract every technology product, software system, cloud service, infrastructure component, and vendor name mentioned in the search results below. Include Microsoft products, non-Microsoft products, cloud platforms, databases, networking tools, and security tools. Do not infer — only extract what is explicitly mentioned.
+
+Return ONLY a valid JSON array of strings. No preamble. No markdown fences.
+
+["product name 1", "product name 2", ...]
+
+SEARCH RESULTS:
+${context}`;
+
+  return { system, user };
+}
+
+function buildVerifiedTechStackPrompt(companyName, context, verificationContext, rawList, ownedProducts) {
+  const ownedSet   = new Set(ownedProducts);
+  const unowned    = PRODUCTS.filter(p => !ownedSet.has(p.name));
+  const unownedStr = unowned.map(p => p.name).join(', ');
+  const ownedStr   = ownedProducts.length ? ownedProducts.join(', ') : 'None';
+
+  const system = `You are a senior Microsoft enterprise sales strategist with 15 years of \
+experience closing complex deals across the Gulf, Levant, and North Africa. \
+You think like a McKinsey consultant but write like someone who has sat \
+across the table from a UAE bank's CISO and a Saudi telco's CFO. Your \
+recommendations are always specific, always defensible, and always \
+connected to something real about the company you are analysing — never \
+generic, never padded.
+
+Your output will be used directly by a channel partner in a customer meeting.`;
+
+  const user = `YOUR TASK:
+Produce a verified technology stack for the company below based on two rounds of search intelligence.
+
+ROUND 1 — Initial search (9 sources):
+${context}
+
+ROUND 2 — Verification search (3 targeted sources):
+${verificationContext}
+
+RAW EXTRACTED TECHNOLOGY LIST (from Round 1):
+${rawList.join(', ')}
+
+INSTRUCTIONS:
+
+For currentTechStack:
+- Include only technologies where at least one signal source confirms deployment or active use
+- Copy Microsoft product names character-for-character from the UNOWNED PRODUCTS list below. For example: "Dynamics 365 Sales" not "Microsoft Dynamics 365 Sales", "Microsoft 365 E3/E5" not "M365 E5"
+- Use free-form strings for non-Microsoft products and infrastructure
+
+For unconfirmedMicrosoftProducts:
+- Include Microsoft products from the catalogue where signals suggest possible use but ownership or deployment cannot be confirmed — e.g. "Azure Active Directory" referenced in infrastructure descriptions without confirmed licensing, "Azure Site Recovery" mentioned once without corroboration
+- Copy product names character-for-character from the UNOWNED PRODUCTS list
+- Do not include products that are confirmed — those go in currentTechStack
+- Do not include products with no signal at all
+
+Do not include a product in both arrays.
+
+OWNED PRODUCTS (already confirmed — exclude from both arrays): ${ownedStr}
+UNOWNED PRODUCTS (use exact names): ${unownedStr}
+
+itMaturityLevel must be exactly one of: High, Moderate, Low.
+dataConfidence must be exactly one of: High, Medium, Low.
+Use sentence case for all text fields. Do not end any field with a full stop.
+Respond ONLY in valid JSON. No preamble. No markdown fences.
+
+{
+  "website": "",
+  "industry": "",
+  "subIndustry": "",
+  "estimatedSize": "",
+  "hqLocation": "",
+  "operatingRegions": [],
+  "currentTechStack": [],
+  "unconfirmedMicrosoftProducts": [],
+  "itMaturityLevel": "",
+  "dataConfidence": ""
+}
+
+COMPANY NAME: ${companyName}`;
+
+  return { system, user };
+}
+
+function buildProfilePrompt(companyName, context, ownedProducts, verifiedTechStack = [], unconfirmedMicrosoftProducts = []) {
   const ownedSet   = new Set(ownedProducts);
   const unowned    = PRODUCTS.filter(p => !ownedSet.has(p.name));
   const unownedStr = unowned.map(p => `${p.name} (${p.category})`).join(', ');
@@ -409,7 +517,7 @@ Signals array: populate with each key claim, its source, and confidence:
 Do not end any text field with a full stop.
 Use sentence case for all text fields — proper nouns, product names, company names, regulations, and acronyms are the only exceptions.
 itMaturityLevel must be exactly one of: High, Moderate, Low.
-For currentTechStack, use exact product names from the OWNED PRODUCTS and UNOWNED PRODUCTS lists for any Microsoft products identified (e.g. "Microsoft 365 E3/E5", "Microsoft Teams", "Dynamics 365 Sales"). Use free-form strings only for non-Microsoft products and unconfirmed infrastructure.
+For currentTechStack, copy product names character-for-character from the OWNED PRODUCTS and UNOWNED PRODUCTS lists for any Microsoft products identified. For example: "Dynamics 365 Sales" not "Microsoft Dynamics 365 Sales", "Microsoft 365 E3/E5" not "M365 E5". Use free-form strings only for non-Microsoft products and unconfirmed infrastructure. Use free-form strings only for non-Microsoft products and unconfirmed infrastructure.
 
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
@@ -432,6 +540,12 @@ label must be exactly one of: Very High, High, Moderate, Low.
 
 Return productScores sorted descending by score.
 
+VERIFIED TECHNOLOGY STACK (established in Stage 1 through double-verified search — treat as confirmed ground truth, do not contradict):
+Confirmed: ${verifiedTechStack.join(', ') || 'None confirmed'}
+Unconfirmed Microsoft products (present in environment but ownership uncertain): ${unconfirmedMicrosoftProducts.join(', ') || 'None'}
+
+When populating currentTechStack in your response, use this verified list as the basis. Do not add or remove products from the confirmed list unless current intelligence provides a direct contradiction with a named source.
+
 COMPANY NAME: ${companyName}
 COMPANY CONTEXT:
 ${context}`;
@@ -439,31 +553,90 @@ ${context}`;
   return { system, user };
 }
 
-// ── Pipeline ──────────────────────────────────────────────────────────────────
+// ── Stage 1 pipeline ──────────────────────────────────────────────────────────
 
-async function runPipeline({ companyName, ownedProducts, anthropicKey, tavilyKey, model }) {
+async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tavilyKey, model }) {
+  // Step 1 — Run 9 Tavily searches
   const context = await gatherContext(companyName, tavilyKey);
 
-  const { system: sys1, user: user1 } = buildProfilePrompt(companyName, context, ownedProducts);
+  // Step 2 — Claude Call 1: raw extraction
+  const { system: sys1, user: user1 } = buildRawExtractionPrompt(context);
   const raw1 = await claudeCall(sys1, user1, anthropicKey, model);
 
-  let call1;
+  let rawList;
   try {
-    call1 = JSON.parse(raw1);
+    const parsed = JSON.parse(raw1);
+    rawList = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    rawList = [];
+  }
+
+  // Step 3 — Run 3 targeted verification searches
+  const verificationContext = await gatherVerificationContext(companyName, rawList, tavilyKey);
+
+  // Step 4 — Claude Call 2: verified tech stack
+  const { system: sys2, user: user2 } = buildVerifiedTechStackPrompt(
+    companyName, context, verificationContext, rawList, ownedProducts,
+  );
+  const raw2 = await claudeCall(sys2, user2, anthropicKey, model);
+
+  let call2;
+  try {
+    call2 = JSON.parse(raw2);
   } catch {
     throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
   }
-  if (!call1.companyProfile || !Array.isArray(call1.productScores)) {
+  if (!call2 || typeof call2 !== 'object') {
     throw new Error('Something went wrong — Claude response is missing required fields');
   }
 
-  const productScores = call1.productScores.map(ps => ({
+  const companyProfile = stripPeriods(call2);
+
+  // Compute msFoundConfirmed: catalogue products in currentTechStack not in ownedProducts
+  const productNameSet = new Set(PRODUCTS.map(p => p.name));
+  const ownedSet       = new Set(ownedProducts);
+  const msFoundConfirmed = (companyProfile.currentTechStack || []).filter(
+    p => productNameSet.has(p) && !ownedSet.has(p),
+  );
+
+  // Step 5 — Return result for Blobs write
+  return {
+    companyProfile,
+    msFoundConfirmed,
+    searchContext: context,
+    modelVersion:  model,
+  };
+}
+
+// ── Stage 2 pipeline ──────────────────────────────────────────────────────────
+
+async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, unconfirmedMicrosoftProducts, searchContext, anthropicKey, model }) {
+  // Step 1 — No Tavily searches; use searchContext from Stage 1
+
+  // Step 2 — Claude Call: full profile + propensity scoring
+  const { system, user } = buildProfilePrompt(
+    companyName, searchContext, ownedProducts, verifiedTechStack, unconfirmedMicrosoftProducts,
+  );
+  const raw = await claudeCall(system, user, anthropicKey, model);
+
+  let call;
+  try {
+    call = JSON.parse(raw);
+  } catch {
+    throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
+  }
+  if (!call.companyProfile || !Array.isArray(call.productScores)) {
+    throw new Error('Something went wrong — Claude response is missing required fields');
+  }
+
+  const productScores = call.productScores.map(ps => ({
     ...ps,
     label: labelFromScore(Number(ps.score) || 0),
   }));
 
+  // Step 3 — Return result for Blobs write
   return {
-    companyProfile: stripPeriods(call1.companyProfile),
+    companyProfile: stripPeriods(call.companyProfile),
     productScores:  stripPeriods(productScores),
     modelVersion:   model,
   };
@@ -483,12 +656,17 @@ exports.handler = async (event) => {
 
   const {
     companyName,
-    ownedProducts = [],
+    ownedProducts                = [],
     anthropicKey,
     tavilyKey,
     netlifyKey,
-    model      = 'sonnet',
+    model                        = 'sonnet',
     customerId,
+    stage                        = 1,
+    // Stage 2 specific
+    verifiedTechStack            = [],
+    unconfirmedMicrosoftProducts = [],
+    searchContext                = '',
   } = body;
 
   // customerId and netlifyKey are required to initialise the store —
@@ -513,15 +691,31 @@ exports.handler = async (event) => {
   }
 
   try {
-    const result = await runPipeline({
-      companyName:   companyName.trim(),
-      ownedProducts: Array.isArray(ownedProducts) ? ownedProducts : [],
-      anthropicKey:  anthropicKey.trim(),
-      tavilyKey:     tavilyKey.trim(),
-      model:         ['sonnet', 'opus'].includes(model) ? model : 'sonnet',
-    });
+    const resolvedModel = ['sonnet', 'opus'].includes(model) ? model : 'sonnet';
+    const resolvedStage = stage === 2 ? 2 : 1;
 
-    await store.set(customerId, JSON.stringify({ status: 'complete', result }));
+    let result;
+    if (resolvedStage === 1) {
+      result = await runStage1Pipeline({
+        companyName:   companyName.trim(),
+        ownedProducts: Array.isArray(ownedProducts) ? ownedProducts : [],
+        anthropicKey:  anthropicKey.trim(),
+        tavilyKey:     tavilyKey.trim(),
+        model:         resolvedModel,
+      });
+    } else {
+      result = await runStage2Pipeline({
+        companyName:                 companyName.trim(),
+        ownedProducts:               Array.isArray(ownedProducts) ? ownedProducts : [],
+        verifiedTechStack:           Array.isArray(verifiedTechStack) ? verifiedTechStack : [],
+        unconfirmedMicrosoftProducts: Array.isArray(unconfirmedMicrosoftProducts) ? unconfirmedMicrosoftProducts : [],
+        searchContext:               typeof searchContext === 'string' ? searchContext : '',
+        anthropicKey:                anthropicKey.trim(),
+        model:                       resolvedModel,
+      });
+    }
+
+    await store.set(customerId, JSON.stringify({ status: 'complete', stage: resolvedStage, result }));
   } catch (err) {
     const userMsg = ERROR_MESSAGES[err.message] || err.message || 'Something went wrong — try again';
     await store.set(customerId, JSON.stringify({ status: 'error', error: userMsg }));

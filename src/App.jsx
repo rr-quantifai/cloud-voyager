@@ -106,6 +106,9 @@ function AnalysisStrip({ state, onClear }) {
   const phaseLabel = {
     initializing: 'initializing analysis',
     tavily:       'searching 9 intelligence sources across strategy, infrastructure, security, AI, and enterprise systems',
+    extracting:   'extracting technology signals from search results',
+    verifying:    'running targeted verification across identified technology stack',
+    finalizing:   'finalizing verified tech stack',
     claude:       'building company profile and scoring propensity across 22 Microsoft products',
   }
 
@@ -383,10 +386,15 @@ function CustomerListPage() {
     setLoading(true)
     const customers = await getAllCustomers()
     const analysisMap = await getLatestAnalysisForAll()
-    const rows = customers.map(c => ({
-      ...c,
-      lastAnalyzed: analysisMap.get(c.id)?.analyzedAt ?? null,
-    }))
+    const rows = customers.map(c => {
+      const analysis = analysisMap.get(c.id)
+      return {
+        ...c,
+        lastAnalyzed:     analysis?.analyzedAt ?? null,
+        analysisStage:    analysis?.stage ?? null,
+        msFoundConfirmed: analysis?.msFoundConfirmed ?? [],
+      }
+    })
     setEnriched(rows)
     setTotalCustomers(rows.length)
     setLoading(false)
@@ -458,13 +466,27 @@ function CustomerListPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setAnalysisState({ customerId: customer.id, phase: 'initializing' })
 
-    phaseTimers.current = [
-      setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'  } : s),  1500),
-      setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'claude' } : s), 13500),
-    ]
+    // Determine which stage to run
+    const latestAnalysis = await getLatestAnalysis(customer.id)
+    const stage2Gate = latestAnalysis?.stage === 1 &&
+      (latestAnalysis?.msFoundConfirmed ?? []).some(p => customer.ownedProducts.includes(p))
+    const stage = stage2Gate ? 2 : 1
+
+    if (stage === 1) {
+      phaseTimers.current = [
+        setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'     } : s),  1500),
+        setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'extracting' } : s), 12000),
+        setTimeout(() => setAnalysisState(s => s?.phase === 'extracting'   ? { ...s, phase: 'verifying'  } : s), 18000),
+        setTimeout(() => setAnalysisState(s => s?.phase === 'verifying'    ? { ...s, phase: 'finalizing' } : s), 24000),
+      ]
+    } else {
+      phaseTimers.current = [
+        setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'claude' } : s), 1500),
+      ]
+    }
 
     try {
-      await analyzeCustomer(customer)
+      await analyzeCustomer(customer, stage, latestAnalysis)
       phaseTimers.current.forEach(clearTimeout)
       setAnalysisState({ customerId: customer.id, phase: 'complete' })
       await loadData()
@@ -555,13 +577,29 @@ function CustomerListPage() {
         const c = row.original
         return (
           <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={() => handleAnalyze(c)}
-              disabled={!keysSaved || isAnalyzing}
-              className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-blue-600 text-white enabled:hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors`}
-            >
-              Analyze
-            </button>
+            {(() => {
+              const isStage1Complete = c.analysisStage === 1
+              const isStage2Complete = c.analysisStage === 2
+              const isReAnalyze      = c.everCompletedStage2 === true
+              const gate             = isStage1Complete && (c.msFoundConfirmed ?? []).some(p => c.ownedProducts.includes(p))
+              const showStage2Btn    = isStage1Complete && !isStage2Complete
+              const label = showStage2Btn
+                ? (isReAnalyze ? 'Re-Analyze · 2/2' : 'Analyze · 2/2')
+                : (isReAnalyze ? 'Re-Analyze · 1/2' : 'Analyze · 1/2')
+              const isGreen    = showStage2Btn
+              const isDisabled = !keysSaved || isAnalyzing || (showStage2Btn && !gate)
+              return (
+                <button
+                  onClick={() => handleAnalyze(c)}
+                  disabled={isDisabled}
+                  className={`${BUTTON_H} px-3 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                    isGreen ? 'bg-emerald-600 enabled:hover:bg-emerald-700' : 'bg-blue-600 enabled:hover:bg-blue-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })()}
             <button
               onClick={() => navigate(`/profile/${encodeURIComponent(c.id)}`)}
               disabled={!c.analysisComplete}
@@ -771,10 +809,12 @@ const MATURITY_CLS = {
 }
 
 function CompanyProfile({ profile, ownedProducts, onUpdateProducts }) {
-  const techStack = profile.currentTechStack || []
-  const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
-  const msFound   = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
-  const nonMs     = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
+  const techStack     = profile.currentTechStack || []
+  const unconfirmed   = profile.unconfirmedMicrosoftProducts || []
+  const msOwned       = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
+  const msFound       = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
+  const nonMs         = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
+  const msUnconfirmed = unconfirmed.filter(p => !ownedProducts.includes(p))
 
   return (
     <div className="space-y-4">
@@ -820,10 +860,18 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts }) {
         <div className="flex items-center gap-3 px-4 py-4 border-t border-slate-200">
           <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap">Other Microsoft Products</span>
           <span className="text-slate-300 shrink-0">·</span>
-          {msFound.length > 0
-            ? <div className="flex gap-1 overflow-x-auto">{msFound.map(p => (
-                <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0">{p}</span>
-              ))}</div>
+          {msFound.length > 0 || msUnconfirmed.length > 0
+            ? <div className="flex gap-1 overflow-x-auto flex-wrap">
+                {msFound.map(p => (
+                  <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0">{p}</span>
+                ))}
+                {msUnconfirmed.map(p => (
+                  <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 shrink-0">
+                    <span className="text-slate-500">{p}</span>
+                    <span className="text-slate-400"> - unconfirmed</span>
+                  </span>
+                ))}
+              </div>
             : <span className="text-sm text-slate-400">No products to display</span>}
         </div>
         <div className="flex items-center gap-3 px-4 py-4 border-t border-slate-200">
@@ -969,7 +1017,7 @@ function CustomerDetailPage() {
             onSaved={() => { setEditModal(null); navigate('/') }}
           />
         )}
-        <PropensityPipeline scores={unownedScores} />
+        {analysis.stage === 2 && <PropensityPipeline scores={unownedScores} />}
       </div>
     </div>
   )
@@ -979,7 +1027,7 @@ function CustomerDetailPage() {
 // SECTION 4 — API CLIENT
 // ============================================================
 
-async function analyzeCustomer(customer) {
+async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
   let keys
   try {
     const settings = await getSettings()
@@ -997,7 +1045,7 @@ async function analyzeCustomer(customer) {
   if (!tavilyKey)    throw new Error('Something went wrong — input Tavily API details and try again')
   if (!netlifyKey)   throw new Error('Something went wrong — input Netlify API details and try again')
 
-  const payload = {
+  const basePayload = {
     customerId:    customer.id,
     companyName:   customer.name,
     ownedProducts: customer.ownedProducts ?? [],
@@ -1007,7 +1055,18 @@ async function analyzeCustomer(customer) {
     netlifyKey,
   }
 
-  // Step 1 — Trigger the background function (returns 202 immediately)
+  const payload = stage === 2 ? {
+    ...basePayload,
+    stage: 2,
+    verifiedTechStack:            priorAnalysis?.companyProfile?.currentTechStack ?? [],
+    unconfirmedMicrosoftProducts: priorAnalysis?.companyProfile?.unconfirmedMicrosoftProducts ?? [],
+    searchContext:                priorAnalysis?.searchContext ?? '',
+  } : {
+    ...basePayload,
+    stage: 1,
+  }
+
+  // Trigger background function
   try {
     const triggerRes = await fetch('/fn/analyze-background', {
       method:  'POST',
@@ -1022,9 +1081,9 @@ async function analyzeCustomer(customer) {
     throw new Error('Something went wrong — network error, check your connection and try again')
   }
 
-  // Step 2 — Poll /fn/analyze-status every 4 seconds until complete or error
+  // Poll for result
   const POLL_INTERVAL_MS = 4000
-  const MAX_POLLS        = 225 // 225 × 4s = 15 minutes, matches background function max runtime
+  const MAX_POLLS        = 225
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
@@ -1032,18 +1091,12 @@ async function analyzeCustomer(customer) {
     let pollRes
     try {
       pollRes = await fetch(`/fn/analyze-status?customerId=${encodeURIComponent(customer.id)}&netlifyToken=${encodeURIComponent(netlifyKey)}`)
-    } catch {
-      continue // Transient network error — keep polling
-    }
+    } catch { continue }
 
-    if (!pollRes.ok) continue // Transient server error — keep polling
+    if (!pollRes.ok) continue
 
     let pollData
-    try {
-      pollData = await pollRes.json()
-    } catch {
-      continue
-    }
+    try { pollData = await pollRes.json() } catch { continue }
 
     if (pollData.status === 'pending') continue
 
@@ -1052,19 +1105,22 @@ async function analyzeCustomer(customer) {
     }
 
     if (pollData.status === 'complete') {
-      const { companyProfile, productScores, modelVersion } = pollData.result
+      const { companyProfile, productScores, msFoundConfirmed, searchContext, modelVersion } = pollData.result
 
       if (!companyProfile)
         throw new Error('Something went wrong — analysis response missing companyProfile, check with developer')
-      if (!Array.isArray(productScores) || !productScores.length)
+
+      if (stage === 2 && (!Array.isArray(productScores) || !productScores.length))
         throw new Error('Something went wrong — analysis response missing productScores, check with developer')
 
       const analysisRecord = {
         id:            crypto.randomUUID(),
         customerId:    customer.id,
         analyzedAt:    new Date().toISOString(),
+        stage,
         companyProfile,
-        productScores,
+        ...(stage === 1 ? { msFoundConfirmed: msFoundConfirmed ?? [], searchContext: searchContext ?? '' } : {}),
+        ...(stage === 2 ? { productScores } : {}),
         modelVersion:  modelVersion ?? model,
       }
 
@@ -1075,10 +1131,13 @@ async function analyzeCustomer(customer) {
         throw new Error('Something went wrong — analysis completed but could not be saved due to storage issues, check with developer')
       }
 
-      const updatedCustomer = { ...customer, analysisComplete: true, updatedAt: new Date().toISOString() }
-      try {
-        await putCustomer(updatedCustomer)
-      } catch {
+      const updatedCustomer = {
+        ...customer,
+        analysisComplete: true,
+        updatedAt:        new Date().toISOString(),
+        ...(stage === 2 ? { everCompletedStage2: true } : {}),
+      }
+      try { await putCustomer(updatedCustomer) } catch {
         console.warn('analyzeCustomer: analysis saved but customer record update failed')
       }
 
@@ -1129,9 +1188,9 @@ function NavBar() {
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-  <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">Cloud Voyager</h1>
-  <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 leading-none">MEA</span>
-</div>
+              <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">Cloud Voyager</h1>
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 leading-none">MEA</span>
+            </div>
             <p className="text-xs text-slate-400 leading-tight">Actionable sales insights</p>
           </div>
         </div>
