@@ -374,7 +374,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model) {
     },
     body: JSON.stringify({
       model:      resolveModelId(model),
-      max_tokens: 16000,
+      max_tokens: 8000,
       system:     systemPrompt,
       messages:   [{ role: 'user', content: userContent }],
     }),
