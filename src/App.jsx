@@ -569,13 +569,7 @@ function CustomerListPage() {
     },
     {
       id: 'actions',
-      header: () => (
-        <div className="flex items-center gap-2 justify-end">
-          <span>Analysis</span>
-          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 normal-case tracking-normal font-medium">Stage 1</span>
-          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 normal-case tracking-normal font-medium">Stage 2</span>
-        </div>
-      ),
+      header: '',
       cell: ({ row }) => {
         const c = row.original
         return (
@@ -594,7 +588,7 @@ function CustomerListPage() {
                   disabled={isDisabled}
                   className={`${BUTTON_H} px-3 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                     isGreen ? 'bg-emerald-600 enabled:hover:bg-emerald-700' : 'bg-blue-600 enabled:hover:bg-blue-700'
-                  }`}
+                  } ${isGreen && !isDisabled ? 'btn-pulse' : ''}`}
                 >
                   {label}
                 </button>
