@@ -430,7 +430,7 @@ ${rawList.join(', ')}
 
 TECH STACK CLASSIFICATION RULES:
 
-A valid tech stack entry is a commercial product — something with a named vendor, a distinct product identity, and a purchasable licence or subscription. If an item does not meet this definition, it does not belong in the tech stack.
+A valid tech stack entry is a commercial product — something with a named vendor, a distinct product identity, and a purchasable license or subscription. If an item does not meet this definition, it does not belong in the tech stack.
 
 Classify every technology signal into one of three buckets before inclusion. This logic applies equally to Microsoft and non-Microsoft products.
 
