@@ -479,12 +479,14 @@ UNOWNED PRODUCTS (use exact names): ${unownedStr}
 
 itMaturityLevel must be exactly one of: High, Moderate, Low.
 dataConfidence must be exactly one of: High, Medium, Low.
+currentTechStack must be a flat array of plain strings — product names only, no objects, no metadata, no bucket labels.
+categorySignals must be a flat array of plain strings — signal descriptions only, no objects.
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
   "website": "",
-  "currentTechStack": [],
-  "categorySignals": [],
+  "currentTechStack": ["product name", "product name"],
+  "categorySignals": ["signal description"],
   "itMaturityLevel": "",
   "dataConfidence": ""
 }

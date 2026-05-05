@@ -805,7 +805,7 @@ const MATURITY_CLS = {
 }
 
 function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
-  const techStack = profile.currentTechStack || []
+  const techStack = (profile.currentTechStack || []).filter(p => typeof p === 'string')
   const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
   const msFound   = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
   const nonMs     = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
