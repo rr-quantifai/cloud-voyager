@@ -634,10 +634,10 @@ function CustomerListPage() {
   const inputNormal = 'bg-slate-50 border-slate-200 text-slate-700'
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-4 space-y-3">
+    <div className="max-w-7xl mx-auto px-6 pt-6 pb-6">
 
       {/* Single row — search · create customer · api keys */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 mb-3">
 
         {/* Search */}
         <input
@@ -714,6 +714,7 @@ function CustomerListPage() {
       <AnalysisStrip state={analysisState} onClear={() => setAnalysisState(null)} />
 
       {/* Table or empty state */}
+      <div className="mt-6">
       {loading ? (
         <div className="py-16 flex justify-center">
           <span className="text-sm text-slate-400">Loading…</span>
@@ -760,6 +761,8 @@ function CustomerListPage() {
           </table>
         </div>
       )}
+
+      </div>
 
       {/* Customer Modal (create / edit) */}
       {modalState && (
@@ -823,11 +826,7 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage, categ
             <div className="flex items-center gap-2 mb-3">
               <span className="text-sm font-medium text-slate-600 shrink-0">Company Profile</span>
               <span className="text-slate-300">·</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${MATURITY_CLS[profile.implementationReadiness] || 'bg-slate-100 text-slate-500'}`}>Implementation Readiness: {profile.implementationReadiness || '—'}</span>
-              <span className="text-slate-300">·</span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500 shrink-0">Key Challenges: {profile.keyBusinessChallenges?.length ?? 0}</span>
-              <span className="text-slate-300">·</span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500 shrink-0">Category Signals: {categorySignals.length}</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${MATURITY_CLS[profile.implementationReadiness] || 'bg-slate-100 text-slate-500'}`}>Implementation Readiness</span>
             </div>
             <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary || '—'}</p>
           </div>
@@ -1000,7 +999,7 @@ function CustomerDetailPage() {
           </button>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto p-6 space-y-4">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
         <CompanyProfile
           profile={analysis.companyProfile}
           ownedProducts={owned}
