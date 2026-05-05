@@ -925,20 +925,18 @@ function PropensityPipeline({ scores }) {
           </div>
           {grouped[level].map(ps => {
             const cc = CATEGORY_CLASSES[ps.category] || { bg: 'bg-slate-100', text: 'text-slate-500' }
-            const [body, scoreRaw] = (ps.rationale || '').split(/Base score/)
-              const score = scoreRaw ? `Base score ${scoreRaw.trim()}` : null
-              const cleanBody = body.trim().replace(/\.$/, '')
-              return (
+            return (
               <div key={ps.product} className="px-4 py-4 border-t border-slate-200">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-medium text-slate-700">{ps.product}</span>
                   <span className="text-slate-300">·</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cc.bg} ${cc.text}`}>{ps.category}</span>
                 </div>
-                <p className="text-sm text-slate-600 leading-relaxed text-justify">{cleanBody || '—'}</p>
-                {score && (
-                  <p className="mt-2 text-xs text-slate-500 bg-slate-100 rounded px-3 py-2 leading-relaxed text-justify">{score}</p>
-                )}
+                <p className="text-sm text-slate-600 leading-relaxed text-justify">
+                  {(ps.rationale || '—').split(/Base score/).map((part, i) =>
+                    i === 0 ? part : <span key={i} className="font-medium">Base score{part}</span>
+                  )}
+                </p>
               </div>
             )
           })}
