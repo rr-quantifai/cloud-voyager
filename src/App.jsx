@@ -805,14 +805,14 @@ const MATURITY_CLS = {
   Low:      'bg-rose-100 text-rose-700',
 }
 
-function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage, categorySignals = [] }) {
+function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
   const techStack = (profile.currentTechStack || []).filter(p => typeof p === 'string')
   const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
   const msFound   = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
   const nonMs     = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
 
       {/* Data Confidence — Stage 2 only */}
       {stage === 2 && (
@@ -901,7 +901,7 @@ function PropensityPipeline({ scores }) {
   if (!activeLevels.length) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {activeLevels.map(level => (
         <div key={level} className="bg-white border border-slate-200 rounded">
           <div className="flex items-center gap-3 px-4 py-4">
@@ -1004,7 +1004,6 @@ function CustomerDetailPage() {
           profile={analysis.companyProfile}
           ownedProducts={owned}
           stage={analysis.stage}
-          categorySignals={analysis.categorySignals ?? []}
           onUpdateProducts={(msFound) => {
             setEditModal({
               ...customer,
