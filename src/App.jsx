@@ -634,7 +634,7 @@ function CustomerListPage() {
   const inputNormal = 'bg-slate-50 border-slate-200 text-slate-700'
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="max-w-7xl mx-auto p-4 space-y-3">
 
       {/* Single row — search · create customer · api keys */}
       <div className="flex items-center gap-2">
@@ -802,7 +802,7 @@ const MATURITY_CLS = {
   Low:      'bg-rose-100 text-rose-700',
 }
 
-function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
+function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage, categorySignals = [] }) {
   const techStack = (profile.currentTechStack || []).filter(p => typeof p === 'string')
   const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
   const msFound   = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
@@ -815,11 +815,20 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
       {stage === 2 && (
         <div className="bg-white border border-slate-200 rounded">
           <div className="flex items-center gap-3 px-4 py-4">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Data confidence</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Data Confidence</span>
             <span className="text-slate-300">·</span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${CONFIDENCE_CLS[profile.dataConfidence] || 'bg-slate-100 text-slate-500'}`}>{profile.dataConfidence}</span>
           </div>
-          <div className="px-4 py-4 border-t border-slate-200">
+          <div className="px-4 pt-4 pb-4 border-t border-slate-200">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-sm font-medium text-slate-600 shrink-0">Company Profile</span>
+              <span className="text-slate-300">·</span>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${MATURITY_CLS[profile.implementationReadiness] || 'bg-slate-100 text-slate-500'}`}>Implementation Readiness: {profile.implementationReadiness || '—'}</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500 shrink-0">Key Challenges: {profile.keyBusinessChallenges?.length ?? 0}</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500 shrink-0">Category Signals: {categorySignals.length}</span>
+            </div>
             <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary || '—'}</p>
           </div>
         </div>
@@ -903,14 +912,19 @@ function PropensityPipeline({ scores }) {
           </div>
           {grouped[level].map(ps => {
             const cc = CATEGORY_CLASSES[ps.category] || { bg: 'bg-slate-100', text: 'text-slate-500' }
-            return (
+            const [body, scoreRaw] = (ps.rationale || '').split(/Base score/)
+              const score = scoreRaw ? `Base score ${scoreRaw.trim()}` : null
+              return (
               <div key={ps.product} className="px-4 py-4 border-t border-slate-200">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-sm font-medium text-slate-700">{ps.product}</span>
                   <span className="text-slate-300">·</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cc.bg} ${cc.text}`}>{ps.category}</span>
                 </div>
-                <p className="text-sm text-slate-600 leading-relaxed text-justify">{ps.rationale || '—'}</p>
+                <p className="text-sm text-slate-600 leading-relaxed text-justify">{body.trim() || '—'}</p>
+                {score && (
+                  <p className="mt-2 text-xs text-slate-400 bg-slate-50 rounded px-3 py-2 leading-relaxed">{score}</p>
+                )}
               </div>
             )
           })}
@@ -974,8 +988,8 @@ function CustomerDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-white border-b border-slate-200 px-6 py-3">
-        <div className="flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="min-w-0">
             <p className="text-base font-semibold text-slate-700 truncate">{customer.name}</p>
             <p className="text-xs text-slate-400">{customer.id}{analysis.companyProfile.website ? ` · ${analysis.companyProfile.website}` : ' · Website not found'}</p>
@@ -985,11 +999,12 @@ function CustomerDetailPage() {
           </button>
         </div>
       </div>
-      <div className="p-6 space-y-4">
+      <div className="max-w-7xl mx-auto p-6 space-y-4">
         <CompanyProfile
           profile={analysis.companyProfile}
           ownedProducts={owned}
           stage={analysis.stage}
+          categorySignals={analysis.categorySignals ?? []}
           onUpdateProducts={(msFound) => {
             setEditModal({
               ...customer,
@@ -1167,7 +1182,7 @@ function NavBar() {
 
   return (
     <header className="bg-white border-b border-slate-200">
-      <div className="flex items-center justify-between px-4 h-16">
+      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-16">
 
         <div className="flex items-center gap-3 select-none">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center flex-shrink-0">
