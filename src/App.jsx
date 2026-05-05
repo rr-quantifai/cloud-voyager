@@ -65,6 +65,18 @@ function formatGST(iso) {
   return `${DD}-${MON}-${YY} ${HH}:${MM}:${SS}`
 }
 
+// ── Dots ──────────────────────────────────────────────────────────────────────
+
+function Dots() {
+  return (
+    <span className="inline-flex items-center gap-1">
+      {[0, 1, 2].map(i => (
+        <span key={i} className="w-1.5 h-1.5 rounded-full bg-slate-300 dot-pulse" style={{ animationDelay: i * 0.2 + 's' }} />
+      ))}
+    </span>
+  )
+}
+
 // ── CategoryStagesFull ────────────────────────────────────────────────────────
 
 function CategoryStagesFull({ categoryStages }) {
@@ -633,6 +645,12 @@ function CustomerListPage() {
   const inputSaved  = 'bg-slate-100 border-slate-200 text-slate-400 cursor-default'
   const inputNormal = 'bg-slate-50 border-slate-200 text-slate-700'
 
+  if (loading) return (
+    <div className="min-h-96 flex items-center justify-center">
+      <Dots />
+    </div>
+  )
+
   return (
     <div className="max-w-7xl mx-auto px-6 pt-6 pb-6">
 
@@ -715,11 +733,7 @@ function CustomerListPage() {
 
       {/* Table or empty state */}
       <div className="mt-6">
-      {loading ? (
-        <div className="py-16 flex justify-center">
-          <span className="text-sm text-slate-400">Loading…</span>
-        </div>
-      ) : !hasData ? (
+      {!hasData ? (
         <div className="border border-slate-200 rounded-lg bg-white px-4 py-12 text-center text-sm text-slate-400">
           {searchQuery
             ? 'No customers match your search'
@@ -979,8 +993,8 @@ function CustomerDetailPage() {
   )
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <span className="text-sm text-slate-400">Loading…</span>
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <Dots />
     </div>
   )
 

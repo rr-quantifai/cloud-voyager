@@ -11,3 +11,12 @@
 .btn-pulse {
   animation: btnpulse 1.8s ease-in-out infinite;
 }
+
+@keyframes dotPulse {
+  0%, 80%, 100% { opacity: 0.15; transform: scale(0.9); }
+  40%           { opacity: 1;    transform: scale(1);   }
+}
+
+.dot-pulse {
+  animation: dotPulse 1.2s infinite both;
+}
