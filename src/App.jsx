@@ -569,7 +569,13 @@ function CustomerListPage() {
     },
     {
       id: 'actions',
-      header: '',
+      header: () => (
+        <div className="flex items-center gap-2 justify-end">
+          <span>Analysis</span>
+          <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 normal-case tracking-normal font-medium">Stage 1</span>
+          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 normal-case tracking-normal font-medium">Stage 2</span>
+        </div>
+      ),
       cell: ({ row }) => {
         const c = row.original
         return (
@@ -579,9 +585,7 @@ function CustomerListPage() {
               const isStage2Complete = c.analysisStage === 2
               const isReAnalyze      = c.everCompletedStage2 === true
               const showStage2Btn    = isStage1Complete && !isStage2Complete
-              const label = showStage2Btn
-                ? (isReAnalyze ? 'Re-Analyze · 2/2' : 'Analyze · 2/2')
-                : (isReAnalyze ? 'Re-Analyze · 1/2' : 'Analyze · 1/2')
+              const label = isReAnalyze ? 'Analyze Again' : 'Analyze'
               const isGreen    = showStage2Btn
               const isDisabled = !keysSaved || isAnalyzing
               return (
@@ -912,7 +916,7 @@ function PropensityPipeline({ scores }) {
                   <span className="text-slate-300">·</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cc.bg} ${cc.text}`}>{ps.category}</span>
                 </div>
-                <p className="text-sm text-slate-500 leading-relaxed text-justify">{ps.rationale || '—'}</p>
+                <p className="text-sm text-slate-600 leading-relaxed text-justify">{ps.rationale || '—'}</p>
               </div>
             )
           })}
@@ -1183,8 +1187,19 @@ function NavBar() {
               <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 leading-none">MEA</span>
             </div>
             <p className="text-xs text-slate-400 leading-tight">Actionable sales insights</p>
+        </div>
+        <div className="w-px h-7 bg-slate-200 shrink-0 mx-1" />
+        <div className="flex flex-col gap-0.5 shrink-0">
+          <div className="flex gap-0.5">
+            <div className="w-2.5 h-2.5" style={{ background: '#F25022' }} />
+            <div className="w-2.5 h-2.5" style={{ background: '#7FBA00' }} />
+          </div>
+          <div className="flex gap-0.5">
+            <div className="w-2.5 h-2.5" style={{ background: '#00A4EF' }} />
+            <div className="w-2.5 h-2.5" style={{ background: '#FFB900' }} />
           </div>
         </div>
+      </div>
 
         <div className={`flex items-center gap-3 transition-opacity duration-150 ${settingsReady ? 'opacity-100' : 'opacity-0'}`}>
           <div className="flex items-center bg-slate-100 rounded-full p-0.5">
