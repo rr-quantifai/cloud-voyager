@@ -468,9 +468,7 @@ function CustomerListPage() {
 
     // Determine which stage to run
     const latestAnalysis = await getLatestAnalysis(customer.id)
-    const stage2Gate = latestAnalysis?.stage === 1 &&
-      (latestAnalysis?.msFoundConfirmed ?? []).some(p => customer.ownedProducts.includes(p))
-    const stage = stage2Gate ? 2 : 1
+    const stage = latestAnalysis?.stage === 1 ? 2 : 1
 
     if (stage === 1) {
       phaseTimers.current = [
@@ -581,7 +579,7 @@ function CustomerListPage() {
               const isStage1Complete = c.analysisStage === 1
               const isStage2Complete = c.analysisStage === 2
               const isReAnalyze      = c.everCompletedStage2 === true
-              const gate             = isStage1Complete && (c.msFoundConfirmed ?? []).some(p => c.ownedProducts.includes(p))
+              const gate             = isStage1Complete
               const showStage2Btn    = isStage1Complete && !isStage2Complete
               const label = showStage2Btn
                 ? (isReAnalyze ? 'Re-Analyze · 2/2' : 'Analyze · 2/2')
@@ -809,12 +807,10 @@ const MATURITY_CLS = {
 }
 
 function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
-  const techStack     = profile.currentTechStack || []
-  const unconfirmed   = profile.unconfirmedMicrosoftProducts || []
-  const msOwned       = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
-  const msFound       = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
-  const nonMs         = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
-  const msUnconfirmed = unconfirmed.filter(p => !ownedProducts.includes(p))
+  const techStack = profile.currentTechStack || []
+  const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
+  const msFound   = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
+  const nonMs     = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
 
   return (
     <div className="space-y-4">
@@ -862,16 +858,10 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
         <div className="flex items-center gap-3 px-4 py-4 border-t border-slate-200">
           <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap">Other Microsoft Products</span>
           <span className="text-slate-300 shrink-0">·</span>
-          {msFound.length > 0 || msUnconfirmed.length > 0
+          {msFound.length > 0
             ? <div className="flex gap-1 overflow-x-auto">
                 {msFound.map(p => (
                   <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0">{p}</span>
-                ))}
-                {msUnconfirmed.map(p => (
-                  <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 shrink-0">
-                    <span className="text-slate-500">{p}</span>
-                    <span className="text-slate-400"> - unconfirmed</span>
-                  </span>
                 ))}
               </div>
             : <span className="text-sm text-slate-400">No products to display</span>}
@@ -1061,9 +1051,8 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
   const payload = stage === 2 ? {
     ...basePayload,
     stage: 2,
-    verifiedTechStack:            priorAnalysis?.companyProfile?.currentTechStack ?? [],
-    unconfirmedMicrosoftProducts: priorAnalysis?.companyProfile?.unconfirmedMicrosoftProducts ?? [],
-    searchContext:                priorAnalysis?.searchContext ?? '',
+    verifiedTechStack: priorAnalysis?.companyProfile?.currentTechStack ?? [],
+    searchContext:     priorAnalysis?.searchContext ?? '',
   } : {
     ...basePayload,
     stage: 1,

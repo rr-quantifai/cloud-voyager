@@ -164,6 +164,32 @@ Power Platform
   Moderate: manual workflow or approval processes
 `.trim();
 
+// ── Scoring framework ─────────────────────────────────────────────────────────
+
+const SCORING_FRAMEWORK = `
+BASE SCORES — use the strongest single signal as the starting point:
+  No relevant signals found → 10
+  Strongest signal is Moderate → 38
+  Strongest signal is High → 60
+  Strongest signal is Very High → 80
+
+UPWARD ADJUSTMENTS — apply each once if evidenced, cumulative cap +20:
+  Second distinct High or Very High signal → +8
+  Each additional distinct signal beyond two → +4
+  Active cross-sell trigger: owned product creates a direct technical dependency → +6
+  Specific named regulation creates a control gap this product closes → +8
+
+DOWNWARD ADJUSTMENTS — apply each once if evidenced:
+  Budget reduction or cost-cutting programme signalled → −15
+  Key product dependency unmet and not in recommended products → −20
+  Competing product locked in under confirmed multi-year contract → −15
+  Cloud repatriation or explicit on-premises mandate signalled → −10
+
+HARD OVERRIDES:
+  Product explicitly prohibited by customer regulation or policy → score = 5
+  Score ceiling: 95 — do not assign 96–100
+`.trim();
+
 // ── Cross-sell trigger map ────────────────────────────────────────────────────
 
 const CROSS_SELL_MAP = `
@@ -198,7 +224,9 @@ function labelFromScore(score) {
 }
 
 function resolveModelId(model) {
-  return model === 'opus' ? 'claude-opus-4-6' : 'claude-sonnet-4-6';
+  if (model === 'opus')  return 'claude-opus-4-6';
+  if (model === 'haiku') return 'claude-haiku-4-5-20251001';
+  return 'claude-sonnet-4-6';
 }
 
 function stripPeriods(val) {
@@ -263,7 +291,7 @@ async function gatherContext(companyName, tavilyKey) {
   raw.forEach((res, sIdx) => {
     if (!res?.results) return;
     res.results.forEach(r => {
-      if (!r.url || typeof r.score !== 'number' || r.score < 0.4) return;
+      if (!r.url || typeof r.score !== 'number' || r.score < 0.3) return;
       const prev = urlOwner.get(r.url);
       if (!prev || r.score > prev.score) urlOwner.set(r.url, { sectionIdx: sIdx, score: r.score });
     });
@@ -275,7 +303,7 @@ async function gatherContext(companyName, tavilyKey) {
     if (res?.answer?.trim()) return `${header}\n${res.answer.trim()}`;
     if (res?.results) {
       const candidate = res.results.find(
-        r => r.score >= 0.4 && urlOwner.get(r.url)?.sectionIdx === i && r.content,
+        r => r.score >= 0.3 && urlOwner.get(r.url)?.sectionIdx === i && r.content,
       );
       if (candidate) return `${header}\n${truncateToTokens(candidate.content, fbTok)}`;
     }
@@ -292,10 +320,23 @@ async function gatherContext(companyName, tavilyKey) {
 }
 
 async function gatherVerificationContext(companyName, rawList, tavilyKey) {
+  // Split rawList positionally — extraction already produces well-formed product
+  // names; no MS/non-MS classification needed at this stage.
+  const firstBatch  = rawList.slice(0, 3).join(' ');
+  const secondBatch = rawList.slice(3, 6).join(' ');
+
+  const msQuery = firstBatch.length > 0
+    ? `${companyName} ${firstBatch} deployment licensing`
+    : `${companyName} Microsoft software products licensing deployment`;
+
+  const nonMsQuery = secondBatch.length > 0
+    ? `${companyName} ${secondBatch} enterprise deployment`
+    : `${companyName} enterprise systems ERP CRM database applications`;
+
   const searches = [
-    { label: 'Microsoft Software Products and Licensing',  query: `${companyName} Microsoft software products licensing deployment`,    fbTok: 800 },
-    { label: 'Enterprise Systems and Applications',        query: `${companyName} enterprise systems ERP CRM database applications`,    fbTok: 800 },
-    { label: 'Cloud Infrastructure and Technology Stack',  query: `${companyName} cloud infrastructure technology stack architecture`,   fbTok: 800 },
+    { label: 'Technology Product Verification — Batch 1',  query: msQuery,                                                                        fbTok: 800 },
+    { label: 'Technology Product Verification — Batch 2',  query: nonMsQuery,                                                                      fbTok: 800 },
+    { label: 'Cloud Infrastructure and Technology Stack',  query: `${companyName} cloud infrastructure technology stack architecture`,             fbTok: 800 },
   ];
 
   const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey)));
@@ -305,7 +346,7 @@ async function gatherVerificationContext(companyName, rawList, tavilyKey) {
     const header = `[VERIFICATION: ${label}]`;
     if (res?.answer?.trim()) return `${header}\n${res.answer.trim()}`;
     if (res?.results) {
-      const candidate = res.results.find(r => r.score >= 0.4 && r.content);
+      const candidate = res.results.find(r => r.score >= 0.3 && r.content);
       if (candidate) return `${header}\n${truncateToTokens(candidate.content, fbTok)}`;
     }
     return `${header}\n${TAVILY_FALLBACK}`;
@@ -381,7 +422,7 @@ Produce a verified technology stack for the company below based on two rounds of
 ROUND 1 — Initial search (9 sources):
 ${context}
 
-ROUND 2 — Verification search (3 targeted sources):
+ROUND 2 — Verification search (3 targeted sources, queries constructed from extracted product signals):
 ${verificationContext}
 
 RAW EXTRACTED TECHNOLOGY LIST (from Round 1):
@@ -398,12 +439,10 @@ Apply this test to every item before including it:
 - Is it a brand umbrella covering multiple products? → decompose it into the specific confirmed products from the signals
 
 MICROSOFT PRODUCTS:
-Every Microsoft product signal must resolve to an exact name from the UNOWNED PRODUCTS list — no other Microsoft product names are valid entries. If a signal confirms deployment, the exact catalogue name goes into currentTechStack. If a signal suggests presence but cannot confirm ownership or deployment, the exact catalogue name goes into unconfirmedMicrosoftProducts. If a Microsoft signal cannot be mapped to any catalogue entry, do not add it as a free-form string — identify which catalogue product it represents and ensure that product appears in the appropriate array.
+Every Microsoft product signal must resolve to an exact name from the UNOWNED PRODUCTS list — no other Microsoft product names are valid entries. If a signal confirms deployment, the exact catalogue name goes into currentTechStack. If a Microsoft signal cannot be confirmed or cannot be mapped to any catalogue entry, exclude it entirely — do not add it as a free-form string and do not guess.
 
 NON-MICROSOFT PRODUCTS:
 Extract the specific commercial product name from whatever language the signal used. The vendor and product name are the entry. Any context about how the product is used — for core banking, for analytics, for customer service — belongs in Stage 2 rationale, not in the tech stack.
-
-Do not include any product in both arrays.
 
 OWNED PRODUCTS (already confirmed — exclude from both arrays): ${ownedStr}
 UNOWNED PRODUCTS (use exact names): ${unownedStr}
@@ -415,7 +454,6 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
 {
   "website": "",
   "currentTechStack": [],
-  "unconfirmedMicrosoftProducts": [],
   "itMaturityLevel": "",
   "dataConfidence": ""
 }
@@ -425,7 +463,7 @@ COMPANY NAME: ${companyName}`;
   return { system, user };
 }
 
-function buildProfilePrompt(companyName, context, ownedProducts, verifiedTechStack = [], unconfirmedMicrosoftProducts = []) {
+function buildProfilePrompt(companyName, context, ownedProducts, verifiedTechStack = []) {
   const ownedSet   = new Set(ownedProducts);
   const unowned    = PRODUCTS.filter(p => !ownedSet.has(p.name));
   const unownedStr = unowned.map(p => `${p.name} (${p.category})`).join(', ');
@@ -471,7 +509,7 @@ Regulatory pressure amplifies a valid business case — it is not a prerequisite
 If signals indicate downsizing, budget pressure, cost reduction programmes, or cloud repatriation, set implementationReadiness to Low and flag the specific signal in keyBusinessChallenges.
 
 Stage 3 — Map gaps to products and score
-Score each unowned product on how directly it addresses an identified gap. Regulatory gap = Very High. Useful but no identified gap = Low.
+Score each unowned product on how directly it addresses an identified gap. Use the SCORING RUBRIC to identify which signals apply, then use the SCORING FRAMEWORK to translate those signals into a numeric score. Apply the framework mechanically — do not override numeric anchors with qualitative judgment.
 
 RATIONALE RULES:
 Write a single compressed paragraph per product. This paragraph is the sales brief a channel partner reads immediately before a customer conversation — it must be specific, punchy, and free of filler. No generic product descriptions. Every sentence must earn its place.
@@ -494,11 +532,11 @@ Similar rationale across companies in the same industry is acceptable when drive
 SPARSE CONTEXT RULE:
 If context is thin, score conservatively and set dataConfidence to Low. A low-confidence honest score is more valuable than a high-confidence fabricated one.
 
-OWNERSHIP VERIFICATION:
-If any signal across all context sections confirms a Microsoft product deployment that does not appear in the OWNED PRODUCTS list, include it in the signals array with confidence reflecting the source quality and this exact note: "Not marked as owned — verify with customer"
-
 SCORING RUBRIC:
 ${SCORING_RUBRIC}
+
+SCORING FRAMEWORK (numeric aggregation — apply after identifying signals from the rubric above):
+${SCORING_FRAMEWORK}
 
 CROSS-SELL TRIGGER MAP:
 ${CROSS_SELL_MAP}
@@ -506,15 +544,9 @@ ${CROSS_SELL_MAP}
 OWNED PRODUCTS (exclude from scoring): ${ownedStr}
 UNOWNED PRODUCTS (score all): ${unownedStr}
 
-Signals array: populate with each key claim, its source, and confidence:
-- High: multiple independent sources
-- Medium: single credible source
-- Low: inferred from one indirect or outdated mention
-
 Do not end any text field with a full stop.
 Use sentence case for all text fields — proper nouns, product names, company names, regulations, and acronyms are the only exceptions.
 itMaturityLevel must be exactly one of: High, Moderate, Low.
-For currentTechStack, copy product names character-for-character from the OWNED PRODUCTS and UNOWNED PRODUCTS lists for any Microsoft products identified. For example: "Dynamics 365 Sales" not "Microsoft Dynamics 365 Sales", "Microsoft 365 E3/E5" not "M365 E5". Use free-form strings only for non-Microsoft products and unconfirmed infrastructure. Use free-form strings only for non-Microsoft products and unconfirmed infrastructure.
 
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
@@ -525,8 +557,7 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
     "hqLocation": "", "operatingRegions": [],
     "currentTechStack": [], "itMaturityLevel": "",
     "keyBusinessChallenges": [], "implementationReadiness": "",
-    "summary": "", "dataConfidence": "",
-    "signals": [{ "claim": "", "source": "", "confidence": "", "note": "" }]
+    "summary": "", "dataConfidence": ""
   },
   "productScores": [
     { "product": "", "category": "", "score": 0, "label": "", "rationale": "" }
@@ -539,7 +570,6 @@ Return productScores sorted descending by score.
 
 VERIFIED TECHNOLOGY STACK (established in Stage 1 through double-verified search — treat as confirmed ground truth, do not contradict):
 Confirmed: ${verifiedTechStack.join(', ') || 'None confirmed'}
-Unconfirmed Microsoft products (present in environment but ownership uncertain): ${unconfirmedMicrosoftProducts.join(', ') || 'None'}
 
 When populating currentTechStack in your response, use this verified list as the basis. Do not add or remove products from the confirmed list unless current intelligence provides a direct contradiction with a named source.
 
@@ -556,9 +586,9 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
   // Step 1 — Run 9 Tavily searches
   const context = await gatherContext(companyName, tavilyKey);
 
-  // Step 2 — Claude Call 1: raw extraction
+  // Step 2 — Claude Call 1: raw extraction (Haiku — no reasoning required)
   const { system: sys1, user: user1 } = buildRawExtractionPrompt(context);
-  const raw1 = await claudeCall(sys1, user1, anthropicKey, model);
+  const raw1 = await claudeCall(sys1, user1, anthropicKey, 'haiku');
 
   let rawList;
   try {
@@ -568,7 +598,7 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
     rawList = [];
   }
 
-  // Step 3 — Run 3 targeted verification searches
+  // Step 3 — Run 3 targeted verification searches (queries built from rawList)
   const verificationContext = await gatherVerificationContext(companyName, rawList, tavilyKey);
 
   // Step 4 — Claude Call 2: verified tech stack
@@ -607,12 +637,12 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
 
 // ── Stage 2 pipeline ──────────────────────────────────────────────────────────
 
-async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, unconfirmedMicrosoftProducts, searchContext, anthropicKey, model }) {
+async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, searchContext, anthropicKey, model }) {
   // Step 1 — No Tavily searches; use searchContext from Stage 1
 
   // Step 2 — Claude Call: full profile + propensity scoring
   const { system, user } = buildProfilePrompt(
-    companyName, searchContext, ownedProducts, verifiedTechStack, unconfirmedMicrosoftProducts,
+    companyName, searchContext, ownedProducts, verifiedTechStack,
   );
   const raw = await claudeCall(system, user, anthropicKey, model);
 
@@ -661,9 +691,8 @@ exports.handler = async (event) => {
     customerId,
     stage                        = 1,
     // Stage 2 specific
-    verifiedTechStack            = [],
-    unconfirmedMicrosoftProducts = [],
-    searchContext                = '',
+    verifiedTechStack = [],
+    searchContext     = '',
   } = body;
 
   // customerId and netlifyKey are required to initialise the store —
@@ -702,13 +731,12 @@ exports.handler = async (event) => {
       });
     } else {
       result = await runStage2Pipeline({
-        companyName:                 companyName.trim(),
-        ownedProducts:               Array.isArray(ownedProducts) ? ownedProducts : [],
-        verifiedTechStack:           Array.isArray(verifiedTechStack) ? verifiedTechStack : [],
-        unconfirmedMicrosoftProducts: Array.isArray(unconfirmedMicrosoftProducts) ? unconfirmedMicrosoftProducts : [],
-        searchContext:               typeof searchContext === 'string' ? searchContext : '',
-        anthropicKey:                anthropicKey.trim(),
-        model:                       resolvedModel,
+        companyName:       companyName.trim(),
+        ownedProducts:     Array.isArray(ownedProducts) ? ownedProducts : [],
+        verifiedTechStack: Array.isArray(verifiedTechStack) ? verifiedTechStack : [],
+        searchContext:     typeof searchContext === 'string' ? searchContext : '',
+        anthropicKey:      anthropicKey.trim(),
+        model:             resolvedModel,
       });
     }
 
