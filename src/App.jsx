@@ -937,7 +937,7 @@ function PropensityPipeline({ scores }) {
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed text-justify">{cleanBody || '—'}</p>
                 {score && (
-                  <p className="mt-2 text-xs text-slate-500 bg-slate-100 rounded px-3 py-2 leading-relaxed text-left">{score}</p>
+                  <p className="mt-2 text-xs text-slate-500 bg-slate-100 rounded px-3 py-2 leading-relaxed text-justify">{score}</p>
                 )}
               </div>
             )
