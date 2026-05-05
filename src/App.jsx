@@ -808,7 +808,7 @@ const MATURITY_CLS = {
   Low:      'bg-rose-100 text-rose-700',
 }
 
-function CompanyProfile({ profile, ownedProducts, onUpdateProducts }) {
+function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
   const techStack     = profile.currentTechStack || []
   const unconfirmed   = profile.unconfirmedMicrosoftProducts || []
   const msOwned       = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
@@ -819,17 +819,19 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts }) {
   return (
     <div className="space-y-4">
 
-      {/* Data Confidence */}
-      <div className="bg-white border border-slate-200 rounded">
-        <div className="flex items-center gap-3 px-4 py-4">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Data confidence</span>
-          <span className="text-slate-300">·</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${CONFIDENCE_CLS[profile.dataConfidence] || 'bg-slate-100 text-slate-500'}`}>{profile.dataConfidence}</span>
+      {/* Data Confidence — Stage 2 only */}
+      {stage === 2 && (
+        <div className="bg-white border border-slate-200 rounded">
+          <div className="flex items-center gap-3 px-4 py-4">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Data confidence</span>
+            <span className="text-slate-300">·</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${CONFIDENCE_CLS[profile.dataConfidence] || 'bg-slate-100 text-slate-500'}`}>{profile.dataConfidence}</span>
+          </div>
+          <div className="px-4 py-4 border-t border-slate-200">
+            <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary || '—'}</p>
+          </div>
         </div>
-        <div className="px-4 py-4 border-t border-slate-200">
-          <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary || '—'}</p>
-        </div>
-      </div>
+      )}
 
       {/* IT Maturity */}
       <div className="bg-white border border-slate-200 rounded">
@@ -861,7 +863,7 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts }) {
           <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap">Other Microsoft Products</span>
           <span className="text-slate-300 shrink-0">·</span>
           {msFound.length > 0 || msUnconfirmed.length > 0
-            ? <div className="flex gap-1 overflow-x-auto flex-wrap">
+            ? <div className="flex gap-1 overflow-x-auto">
                 {msFound.map(p => (
                   <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0">{p}</span>
                 ))}
@@ -1001,6 +1003,7 @@ function CustomerDetailPage() {
         <CompanyProfile
           profile={analysis.companyProfile}
           ownedProducts={owned}
+          stage={analysis.stage}
           onUpdateProducts={(msFound) => {
             setEditModal({
               ...customer,

@@ -387,20 +387,23 @@ ${verificationContext}
 RAW EXTRACTED TECHNOLOGY LIST (from Round 1):
 ${rawList.join(', ')}
 
-INSTRUCTIONS:
+TECH STACK CLASSIFICATION RULES:
 
-For currentTechStack:
-- Include only technologies where at least one signal source confirms deployment or active use
-- Copy Microsoft product names character-for-character from the UNOWNED PRODUCTS list below. For example: "Dynamics 365 Sales" not "Microsoft Dynamics 365 Sales", "Microsoft 365 E3/E5" not "M365 E5"
-- Use free-form strings for non-Microsoft products and infrastructure
+A valid tech stack entry is a commercial product — something with a named vendor, a distinct product identity, and a purchasable licence or subscription. If an item does not meet this definition, it does not belong in the tech stack.
 
-For unconfirmedMicrosoftProducts:
-- Include Microsoft products from the catalogue where signals suggest possible use but ownership or deployment cannot be confirmed — e.g. "Azure Active Directory" referenced in infrastructure descriptions without confirmed licensing, "Azure Site Recovery" mentioned once without corroboration
-- Copy product names character-for-character from the UNOWNED PRODUCTS list
-- Do not include products that are confirmed — those go in currentTechStack
-- Do not include products with no signal at all
+Apply this test to every item before including it:
+- Is it sold by a vendor as a named product? → include it
+- Is it a programming language, framework, scripting tool, or infrastructure protocol? → exclude it — these are implementation choices, not purchased products
+- Is it a description of how a product is used rather than the product itself? → strip the description and extract the product name only
+- Is it a brand umbrella covering multiple products? → decompose it into the specific confirmed products from the signals
 
-Do not include a product in both arrays.
+MICROSOFT PRODUCTS:
+Every Microsoft product signal must resolve to an exact name from the UNOWNED PRODUCTS list — no other Microsoft product names are valid entries. If a signal confirms deployment, the exact catalogue name goes into currentTechStack. If a signal suggests presence but cannot confirm ownership or deployment, the exact catalogue name goes into unconfirmedMicrosoftProducts. If a Microsoft signal cannot be mapped to any catalogue entry, do not add it as a free-form string — identify which catalogue product it represents and ensure that product appears in the appropriate array.
+
+NON-MICROSOFT PRODUCTS:
+Extract the specific commercial product name from whatever language the signal used. The vendor and product name are the entry. Any context about how the product is used — for core banking, for analytics, for customer service — belongs in Stage 2 rationale, not in the tech stack.
+
+Do not include any product in both arrays.
 
 OWNED PRODUCTS (already confirmed — exclude from both arrays): ${ownedStr}
 UNOWNED PRODUCTS (use exact names): ${unownedStr}
