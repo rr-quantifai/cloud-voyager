@@ -388,7 +388,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model) {
 function buildRawExtractionPrompt(context) {
   const system = `You are a technology intelligence analyst. Extract technology product and infrastructure names from search results. Return only a flat JSON array of strings. No analysis. No scoring. No explanation.`;
 
-  const user = `Extract every technology product, software system, cloud service, infrastructure component, and vendor name mentioned in the search results below. Include Microsoft products, non-Microsoft products, cloud platforms, databases, networking tools, and security tools. Do not infer — only extract what is explicitly mentioned.
+  const user = `Extract every named commercial technology product, software system, cloud service, and vendor name mentioned in the search results below. Include Microsoft products, non-Microsoft products, cloud platforms, databases, security tools, and enterprise software. Exclude generic infrastructure concepts, programming languages, frameworks, and protocols — only extract named purchasable products. Do not infer — only extract what is explicitly mentioned.
 
 Return ONLY a valid JSON array of strings. No preamble. No markdown fences.
 
@@ -432,19 +432,49 @@ TECH STACK CLASSIFICATION RULES:
 
 A valid tech stack entry is a commercial product — something with a named vendor, a distinct product identity, and a purchasable licence or subscription. If an item does not meet this definition, it does not belong in the tech stack.
 
-Apply this test to every item before including it:
-- Is it sold by a vendor as a named product? → include it
-- Is it a programming language, framework, scripting tool, or infrastructure protocol? → exclude it — these are implementation choices, not purchased products
-- Is it a description of how a product is used rather than the product itself? → strip the description and extract the product name only
-- Is it a brand umbrella covering multiple products? → decompose it into the specific confirmed products from the signals
+Classify every technology signal into one of three buckets before inclusion. This logic applies equally to Microsoft and non-Microsoft products.
 
-MICROSOFT PRODUCTS:
-Every Microsoft product signal must resolve to an exact name from the UNOWNED PRODUCTS list — no other Microsoft product names are valid entries. If a signal confirms deployment, the exact catalogue name goes into currentTechStack. If a Microsoft signal cannot be confirmed or cannot be mapped to any catalogue entry, exclude it entirely — do not add it as a free-form string and do not guess.
+BUCKET A — Exact product name confirmed
+The signal explicitly names a specific commercial product. Include it directly.
+Microsoft: match to the exact catalogue name from the UNOWNED PRODUCTS list.
+Non-Microsoft: use the commercial product name as stated (e.g. "Salesforce", "SAP S/4HANA", "Splunk Enterprise").
 
-NON-MICROSOFT PRODUCTS:
-Extract the specific commercial product name from whatever language the signal used. The vendor and product name are the entry. Any context about how the product is used — for core banking, for analytics, for customer service — belongs in Stage 2 rationale, not in the tech stack.
+BUCKET B — Workload context exists, product is defensibly inferable
+The signal names a vendor or service but also describes a specific workload or function. Map to the single most defensible product. If two products could equally serve this workload, treat as Bucket C instead.
 
-OWNED PRODUCTS (already confirmed — exclude from both arrays): ${ownedStr}
+Microsoft workload inference — map to exact catalogue name:
+  Email, messaging, Exchange, Exchange Online → Microsoft 365 E3/E5
+  Cloud compute, virtual servers, VMs, IaaS → Azure Virtual Machines
+  Cloud storage, blob storage, data lake, object storage → Azure Storage and Data Lake
+  Cloud database, SQL, Cosmos, NoSQL → Azure SQL and Cosmos DB
+  Web application hosting, PaaS, app hosting → Azure App Service
+  Containers, Kubernetes, microservices → Azure Kubernetes Service
+  Identity, authentication, SSO, Active Directory, MFA, Zero Trust → Microsoft Entra ID
+  Endpoint security, antivirus, device protection, EDR → Microsoft Defender for Endpoint
+  Cloud security posture, multi-cloud security, CSPM → Microsoft Defender for Cloud
+  Data governance, data classification, compliance, information protection → Microsoft Purview
+  SIEM, threat detection, SOC, security analytics → Microsoft Sentinel
+  AI productivity assistant, Copilot for office tasks → Microsoft Copilot for M365
+  Chatbot, virtual agent, conversational AI, bot platform → Copilot Studio
+  Generative AI, large language models, GPT, Azure AI → Azure OpenAI Service
+  Machine learning, predictive analytics, data science → Azure Machine Learning
+  AI model development platform → Azure AI Studio
+  CRM, sales management, pipeline management → Dynamics 365 Sales
+  ERP, finance, operations, accounting, supply chain → Dynamics 365 Finance and Operations
+  Low-code, Power BI, Power Apps, workflow automation, RPA → Power Platform
+  Employee experience, HR platform, workforce engagement → Microsoft Viva
+  Document management, intranet, file sharing → SharePoint Online
+
+Non-Microsoft workload inference: apply the same principle — identify the workload from context and map to the most specific commercial product that vendor offers for that workload. Examples: "SAP for HR" → SAP SuccessFactors; "SAP for finance or operations" → SAP S/4HANA; "Oracle for database" → Oracle Database; "Oracle for ERP" → Oracle Fusion.
+
+BUCKET C — Vendor or category confirmed, workload ambiguous
+The signal confirms a vendor or technology category is present but provides insufficient workload context to map defensibly to a single product. Do not add to currentTechStack. Add a concise description to categorySignals instead.
+Format: "[Vendor/category] presence confirmed — specific product unknown"
+Examples: "Microsoft cloud products" → "Microsoft cloud presence confirmed — specific product unknown"; "SAP across the business" → "SAP enterprise software confirmed — specific product unknown"; "uses AI tools" → "AI tooling presence confirmed — specific product unknown"
+
+Programming languages, frameworks, scripting tools, infrastructure protocols, and open-source libraries are not products — exclude them entirely.
+
+OWNED PRODUCTS (already confirmed — exclude from currentTechStack and categorySignals): ${ownedStr}
 UNOWNED PRODUCTS (use exact names): ${unownedStr}
 
 itMaturityLevel must be exactly one of: High, Moderate, Low.
@@ -454,6 +484,7 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
 {
   "website": "",
   "currentTechStack": [],
+  "categorySignals": [],
   "itMaturityLevel": "",
   "dataConfidence": ""
 }
@@ -463,7 +494,7 @@ COMPANY NAME: ${companyName}`;
   return { system, user };
 }
 
-function buildProfilePrompt(companyName, context, ownedProducts, verifiedTechStack = []) {
+function buildProfilePrompt(companyName, context, ownedProducts, verifiedTechStack = [], categorySignals = []) {
   const ownedSet   = new Set(ownedProducts);
   const unowned    = PRODUCTS.filter(p => !ownedSet.has(p.name));
   const unownedStr = unowned.map(p => `${p.name} (${p.category})`).join(', ');
@@ -486,9 +517,9 @@ Analyse the company below and return:
 
 The intelligence below comes from 9 targeted web searches. These plus your own training knowledge of the company, Microsoft products, and the MEA market are your sole intelligence sources. Reason from what is present, score conservatively where signals are absent.
 
-THREE-STAGE REASONING:
+THREE-STEP REASONING:
 
-Stage 1 — Build the business picture
+Step 1 — Build the business picture
 Synthesise industry position, growth stage, financial health, leadership priorities, incumbent vendors, regulatory environment, and regional context. Hiring patterns, news, and competitor displacement data are the most reliable indicators of IT maturity. Do not score anything yet.
 
 If company-specific signals are sparse, use these fallbacks in order:
@@ -497,7 +528,7 @@ Regulatory air cover: identify the top 3 compliance mandates for this company's 
 
 Peer-group extrapolation: identify standard technology debt common to this company's sector and size tier in the MEA market (e.g. fragmented legacy ERPs in mid-sized construction firms, on-premises file servers in family-owned conglomerates) and treat these as baseline inferences. Label them clearly as peer-group inference, not confirmed signals.
 
-Stage 2 — Identify technology gaps
+Step 2 — Identify technology gaps
 Identify what is missing, outdated, creating business risk, or limiting growth. For each gap, classify its pressure type:
 - Regulatory: a specific law or framework creates a measurable control gap — highest urgency
 - Competitive: peers or sector trends create risk of falling behind — strong urgency
@@ -508,7 +539,7 @@ Regulatory pressure amplifies a valid business case — it is not a prerequisite
 
 If signals indicate downsizing, budget pressure, cost reduction programmes, or cloud repatriation, set implementationReadiness to Low and flag the specific signal in keyBusinessChallenges.
 
-Stage 3 — Map gaps to products and score
+Step 3 — Map gaps to products and score
 Score each unowned product on how directly it addresses an identified gap. Use the SCORING RUBRIC to identify which signals apply, then use the SCORING FRAMEWORK to translate those signals into a numeric score. Apply the framework mechanically — do not override numeric anchors with qualitative judgment.
 
 RATIONALE RULES:
@@ -531,6 +562,19 @@ Similar rationale across companies in the same industry is acceptable when drive
 
 SPARSE CONTEXT RULE:
 If context is thin, score conservatively and set dataConfidence to Low. A low-confidence honest score is more valuable than a high-confidence fabricated one.
+
+SUMMARY RULES:
+Write a single cohesive paragraph that serves as the partner's complete pre-meeting intelligence brief. This is the first thing the partner reads — it must orient them immediately and equip them for a credible opening conversation.
+
+Weave together all of the following that are evidenced:
+- Company identity: industry, sub-industry, estimated size, HQ location, operating regions
+- Technology posture: IT maturity level, implementation readiness, key business challenges
+- Confirmed technology environment: what they own and what it signals about their direction, competitive exposure, or upgrade path
+- Category-level signals (listed under CATEGORY SIGNALS below) that could not be resolved to specific products — frame these as discovery angles, not confirmed facts
+- Strategic direction: public ambitions, digital transformation programmes, regulatory pressures, AI or cloud initiatives
+- What this means for the partner: what conversation to open, what to explore in discovery, what to validate on arrival
+
+Write in flowing prose. No bullet points. No generic observations. Every sentence must add something a partner could not infer from the company name alone. Do not end the paragraph with a full stop.
 
 SCORING RUBRIC:
 ${SCORING_RUBRIC}
@@ -562,9 +606,9 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
   "productScores": [
     { "product": "", "category": "", "score": 0, "label": "", "rationale": "" }
   ]
+}
 
 label must be exactly one of: Very High, High, Moderate, Low.
-}
 
 Return productScores sorted descending by score.
 
@@ -572,6 +616,9 @@ VERIFIED TECHNOLOGY STACK (established in Stage 1 through double-verified search
 Confirmed: ${verifiedTechStack.join(', ') || 'None confirmed'}
 
 When populating currentTechStack in your response, use this verified list as the basis. Do not add or remove products from the confirmed list unless current intelligence provides a direct contradiction with a named source.
+
+CATEGORY SIGNALS (confirmed in Stage 1 but could not be resolved to a specific product — weave into the summary paragraph as discovery angles, not confirmed facts):
+${categorySignals.length > 0 ? categorySignals.join('\n') : 'None'}
 
 COMPANY NAME: ${companyName}
 COMPANY CONTEXT:
@@ -619,30 +666,23 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
 
   const companyProfile = stripPeriods(call2);
 
-  // Compute msFoundConfirmed: catalogue products in currentTechStack not in ownedProducts
-  const productNameSet = new Set(PRODUCTS.map(p => p.name));
-  const ownedSet       = new Set(ownedProducts);
-  const msFoundConfirmed = (companyProfile.currentTechStack || []).filter(
-    p => productNameSet.has(p) && !ownedSet.has(p),
-  );
-
   // Step 5 — Return result for Blobs write
   return {
     companyProfile,
-    msFoundConfirmed,
-    searchContext: context,
-    modelVersion:  model,
+    categorySignals: companyProfile.categorySignals || [],
+    searchContext:   context,
+    modelVersion:    model,
   };
 }
 
 // ── Stage 2 pipeline ──────────────────────────────────────────────────────────
 
-async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, searchContext, anthropicKey, model }) {
+async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, categorySignals, searchContext, anthropicKey, model }) {
   // Step 1 — No Tavily searches; use searchContext from Stage 1
 
   // Step 2 — Claude Call: full profile + propensity scoring
   const { system, user } = buildProfilePrompt(
-    companyName, searchContext, ownedProducts, verifiedTechStack,
+    companyName, searchContext, ownedProducts, verifiedTechStack, categorySignals,
   );
   const raw = await claudeCall(system, user, anthropicKey, model);
 
@@ -692,6 +732,7 @@ exports.handler = async (event) => {
     stage                        = 1,
     // Stage 2 specific
     verifiedTechStack = [],
+    categorySignals   = [],
     searchContext     = '',
   } = body;
 
@@ -734,6 +775,7 @@ exports.handler = async (event) => {
         companyName:       companyName.trim(),
         ownedProducts:     Array.isArray(ownedProducts) ? ownedProducts : [],
         verifiedTechStack: Array.isArray(verifiedTechStack) ? verifiedTechStack : [],
+        categorySignals:   Array.isArray(categorySignals) ? categorySignals : [],
         searchContext:     typeof searchContext === 'string' ? searchContext : '',
         anthropicKey:      anthropicKey.trim(),
         model:             resolvedModel,

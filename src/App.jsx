@@ -392,7 +392,6 @@ function CustomerListPage() {
         ...c,
         lastAnalyzed:     analysis?.analyzedAt ?? null,
         analysisStage:    analysis?.stage ?? null,
-        msFoundConfirmed: analysis?.msFoundConfirmed ?? [],
       }
     })
     setEnriched(rows)
@@ -579,13 +578,12 @@ function CustomerListPage() {
               const isStage1Complete = c.analysisStage === 1
               const isStage2Complete = c.analysisStage === 2
               const isReAnalyze      = c.everCompletedStage2 === true
-              const gate             = isStage1Complete
               const showStage2Btn    = isStage1Complete && !isStage2Complete
               const label = showStage2Btn
                 ? (isReAnalyze ? 'Re-Analyze · 2/2' : 'Analyze · 2/2')
                 : (isReAnalyze ? 'Re-Analyze · 1/2' : 'Analyze · 1/2')
               const isGreen    = showStage2Btn
-              const isDisabled = !keysSaved || isAnalyzing || (showStage2Btn && !gate)
+              const isDisabled = !keysSaved || isAnalyzing
               return (
                 <button
                   onClick={() => handleAnalyze(c)}
@@ -1052,6 +1050,7 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     ...basePayload,
     stage: 2,
     verifiedTechStack: priorAnalysis?.companyProfile?.currentTechStack ?? [],
+    categorySignals:   priorAnalysis?.categorySignals ?? [],
     searchContext:     priorAnalysis?.searchContext ?? '',
   } : {
     ...basePayload,
@@ -1097,7 +1096,7 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     }
 
     if (pollData.status === 'complete') {
-      const { companyProfile, productScores, msFoundConfirmed, searchContext, modelVersion } = pollData.result
+      const { companyProfile, productScores, categorySignals, searchContext, modelVersion } = pollData.result
 
       if (!companyProfile)
         throw new Error('Something went wrong — analysis response missing companyProfile, check with developer')
@@ -1111,7 +1110,7 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
         analyzedAt:    new Date().toISOString(),
         stage,
         companyProfile,
-        ...(stage === 1 ? { msFoundConfirmed: msFoundConfirmed ?? [], searchContext: searchContext ?? '' } : {}),
+        ...(stage === 1 ? { categorySignals: categorySignals ?? [], searchContext: searchContext ?? '' } : {}),
         ...(stage === 2 ? { productScores } : {}),
         modelVersion:  modelVersion ?? model,
       }
