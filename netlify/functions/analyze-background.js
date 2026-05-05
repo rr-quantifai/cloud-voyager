@@ -680,30 +680,30 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
 async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, categorySignals, searchContext, anthropicKey, model }) {
   // Step 1 — No Tavily searches; use searchContext from Stage 1
 
-  // Step 2 — Claude Call: full profile + propensity scoring
-  const { system, user } = buildProfilePrompt(
+  // Step 2 — Claude Call 3: full profile + propensity scoring
+  const { system: sys3, user: user3 } = buildProfilePrompt(
     companyName, searchContext, ownedProducts, verifiedTechStack, categorySignals,
   );
-  const raw = await claudeCall(system, user, anthropicKey, model);
+  const raw3 = await claudeCall(sys3, user3, anthropicKey, model);
 
-  let call;
+  let call3;
   try {
-    call = JSON.parse(raw);
+    call3 = JSON.parse(raw3);
   } catch {
     throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
   }
-  if (!call.companyProfile || !Array.isArray(call.productScores)) {
+  if (!call3.companyProfile || !Array.isArray(call3.productScores)) {
     throw new Error('Something went wrong — Claude response is missing required fields');
   }
 
-  const productScores = call.productScores.map(ps => ({
+  const productScores = call3.productScores.map(ps => ({
     ...ps,
     label: labelFromScore(Number(ps.score) || 0),
   }));
 
   // Step 3 — Return result for Blobs write
   return {
-    companyProfile: stripPeriods(call.companyProfile),
+    companyProfile: stripPeriods(call3.companyProfile),
     productScores:  stripPeriods(productScores),
     modelVersion:   model,
   };

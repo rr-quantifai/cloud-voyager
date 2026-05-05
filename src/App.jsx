@@ -105,7 +105,7 @@ function AnalysisStrip({ state, onClear }) {
 
   const phaseLabel = {
     initializing: 'initializing analysis',
-    tavily:       'searching 9 intelligence sources across strategy, infrastructure, security, AI, and enterprise systems',
+    searching:       'searching 9 intelligence sources across strategy, infrastructure, security, AI, and enterprise systems',
     extracting:   'extracting technology signals from search results',
     verifying:    'running targeted verification across identified technology stack',
     finalizing:   'finalizing verified tech stack',
@@ -471,8 +471,8 @@ function CustomerListPage() {
 
     if (stage === 1) {
       phaseTimers.current = [
-        setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'tavily'     } : s),  1500),
-        setTimeout(() => setAnalysisState(s => s?.phase === 'tavily'       ? { ...s, phase: 'extracting' } : s), 12000),
+        setTimeout(() => setAnalysisState(s => s?.phase === 'initializing' ? { ...s, phase: 'searching'     } : s),  1500),
+        setTimeout(() => setAnalysisState(s => s?.phase === 'searching'       ? { ...s, phase: 'extracting' } : s), 12000),
         setTimeout(() => setAnalysisState(s => s?.phase === 'extracting'   ? { ...s, phase: 'verifying'  } : s), 18000),
         setTimeout(() => setAnalysisState(s => s?.phase === 'verifying'    ? { ...s, phase: 'finalizing' } : s), 24000),
       ]
