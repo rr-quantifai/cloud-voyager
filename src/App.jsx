@@ -1207,7 +1207,7 @@ function NavBar() {
               <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 leading-none">MEA</span>
             </div>
             <p className="text-xs text-slate-400 leading-tight">Actionable sales insights</p>
-        </div>
+          </div>
         <div className="w-px h-7 bg-slate-200 shrink-0 mx-1" />
         <div className="flex flex-col gap-0.5 shrink-0">
           <div className="flex gap-0.5">
