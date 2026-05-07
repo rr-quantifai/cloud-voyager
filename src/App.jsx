@@ -1058,7 +1058,6 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
   const anthropicKey = keys.anthropic?.trim()
   const tavilyKey    = keys.tavily?.trim()
   const netlifyKey   = keys.netlify?.trim()
-  const model        = keys.model ?? 'sonnet'
 
   if (!anthropicKey) throw new Error('Something went wrong — input Anthropic API details and try again')
   if (!tavilyKey)    throw new Error('Something went wrong — input Tavily API details and try again')
@@ -1068,7 +1067,6 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     customerId:    customer.id,
     companyName:   customer.name,
     ownedProducts: customer.ownedProducts ?? [],
-    model,
     anthropicKey,
     tavilyKey,
     netlifyKey,
@@ -1126,6 +1124,16 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     if (pollData.status === 'complete') {
       const { companyProfile, productScores, categorySignals, searchContext, modelVersion } = pollData.result
 
+      if (stage === 1) {
+        console.group(`[Cloud Voyager] ${customer.id} — Stage 1 output`)
+        console.log('Raw Tavily context:', searchContext)
+        console.log('Verified tech stack:', companyProfile?.currentTechStack)
+        console.log('Category signals:', companyProfile?.categorySignals)
+        console.log('IT maturity:', companyProfile?.itMaturityLevel)
+        console.log('Data confidence:', companyProfile?.dataConfidence)
+        console.groupEnd()
+      }
+
       if (!companyProfile)
         throw new Error('Something went wrong — analysis response missing companyProfile, check with developer')
 
@@ -1140,7 +1148,7 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
         companyProfile,
         ...(stage === 1 ? { categorySignals: categorySignals ?? [], searchContext: searchContext ?? '' } : {}),
         ...(stage === 2 ? { productScores } : {}),
-        modelVersion:  modelVersion ?? model,
+        modelVersion:  modelVersion ?? 'sonnet',
       }
 
       try {
@@ -1173,22 +1181,6 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
 
 function NavBar() {
   const totalCustomers = useStore(s => s.totalCustomers)
-
-  const [model, setModelState]     = useState('sonnet')
-  const [settingsReady, setSettingsReady] = useState(false)
-
-  useEffect(() => {
-    getSettings().then(s => {
-      setModelState(s.model ?? 'sonnet')
-      setSettingsReady(true)
-    })
-  }, [])
-
-  async function handleModelChange(next) {
-    setModelState(next)
-    const s = await getSettings()
-    await saveSettings({ ...s, model: next })
-  }
 
   async function handleClearAll() {
     await clearAllData()
@@ -1225,33 +1217,13 @@ function NavBar() {
         </div>
       </div>
 
-        <div className={`flex items-center gap-3 transition-opacity duration-150 ${settingsReady ? 'opacity-100' : 'opacity-0'}`}>
-          <div className="flex items-center bg-slate-100 rounded-full p-0.5">
-            <button
-              onClick={() => handleModelChange('sonnet')}
-              className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
-                model === 'sonnet' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Sonnet
-            </button>
-            <button
-              onClick={() => handleModelChange('opus')}
-              className={`px-3 h-7 rounded-full text-xs font-medium transition-colors ${
-                model === 'opus' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Opus
-            </button>
-          </div>
-          <button
-            onClick={handleClearAll}
-            disabled={totalCustomers === 0}
-            className="h-8 px-3 rounded-md text-xs font-medium text-rose-600 enabled:hover:bg-rose-50 border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            Clear All Data
-          </button>
-        </div>
+        <button
+          onClick={handleClearAll}
+          disabled={totalCustomers === 0}
+          className="h-8 px-3 rounded-md text-xs font-medium text-rose-600 enabled:hover:bg-rose-50 border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Clear All Data
+        </button>
 
       </div>
     </header>

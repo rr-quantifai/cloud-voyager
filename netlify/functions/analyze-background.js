@@ -744,7 +744,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model) {
     },
     body: JSON.stringify({
       model:      resolveModelId(model),
-      max_tokens: 8000,
+      max_tokens: 16000,
       system:     systemPrompt,
       messages:   [{ role: 'user', content: userContent }],
     }),
@@ -1013,7 +1013,7 @@ ${context}`;
 
 // ── Stage 1 pipeline ──────────────────────────────────────────────────────────
 
-async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tavilyKey, model }) {
+async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tavilyKey }) {
   // Step 1 — Run 9 Tavily searches
   const context = await gatherContext(companyName, tavilyKey);
 
@@ -1036,7 +1036,7 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
   const { system: sys2, user: user2 } = buildVerifiedTechStackPrompt(
     companyName, context, verificationContext, rawList, ownedProducts,
   );
-  const raw2 = await claudeCall(sys2, user2, anthropicKey, model);
+  const raw2 = await claudeCall(sys2, user2, anthropicKey, 'sonnet');
 
   let call2;
   try {
@@ -1060,13 +1060,13 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
     companyProfile,
     categorySignals: processedSignals,
     searchContext:   context,
-    modelVersion:    model,
+    modelVersion:    'sonnet',
   };
 }
 
 // ── Stage 2 pipeline ──────────────────────────────────────────────────────────
 
-async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, categorySignals, searchContext, anthropicKey, model }) {
+async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, categorySignals, searchContext, anthropicKey }) {
   // Step 1 — No Tavily searches; use searchContext from Stage 1
 
   // Step 2 — Claude Call 3: full profile + propensity scoring
@@ -1097,7 +1097,7 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   return {
     companyProfile: frozenProfile,
     productScores:  stripPeriods(productScores),
-    modelVersion:   model,
+    modelVersion:   'opus',
   };
 }
 
@@ -1119,7 +1119,6 @@ exports.handler = async (event) => {
     anthropicKey,
     tavilyKey,
     netlifyKey,
-    model                        = 'sonnet',
     customerId,
     stage                        = 1,
     // Stage 2 specific
@@ -1150,7 +1149,6 @@ exports.handler = async (event) => {
   }
 
   try {
-    const resolvedModel = ['sonnet', 'opus'].includes(model) ? model : 'sonnet';
     const resolvedStage = stage === 2 ? 2 : 1;
 
     let result;
@@ -1160,7 +1158,6 @@ exports.handler = async (event) => {
         ownedProducts: Array.isArray(ownedProducts) ? ownedProducts : [],
         anthropicKey:  anthropicKey.trim(),
         tavilyKey:     tavilyKey.trim(),
-        model:         resolvedModel,
       });
     } else {
       result = await runStage2Pipeline({
@@ -1170,7 +1167,6 @@ exports.handler = async (event) => {
         categorySignals:   Array.isArray(categorySignals) ? categorySignals : [],
         searchContext:     typeof searchContext === 'string' ? searchContext : '',
         anthropicKey:      anthropicKey.trim(),
-        model:             resolvedModel,
       });
     }
 
