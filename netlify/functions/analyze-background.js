@@ -1074,7 +1074,7 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   const { system: sys3, user: user3 } = buildProfilePrompt(
     companyName, searchContext, ownedProducts, verifiedTechStack, categorySignals,
   );
-  const raw3 = await claudeCall(sys3, user3, anthropicKey, model);
+  const raw3 = await claudeCall(sys3, user3, anthropicKey, opus);
 
   let call3;
   try {
