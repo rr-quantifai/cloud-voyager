@@ -1058,9 +1058,10 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
   // Step 5 — Return result for Blobs write
   return {
     companyProfile,
-    categorySignals: processedSignals,
-    searchContext:   context,
-    modelVersion:    'sonnet',
+    categorySignals:       processedSignals,
+    searchContext:         context,
+    verificationContext,
+    modelVersion:          'sonnet',
   };
 }
 

@@ -1122,11 +1122,12 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     }
 
     if (pollData.status === 'complete') {
-      const { companyProfile, productScores, categorySignals, searchContext, modelVersion } = pollData.result
+      const { companyProfile, productScores, categorySignals, searchContext, verificationContext, modelVersion } = pollData.result
 
       if (stage === 1) {
         console.group(`[Cloud Voyager] ${customer.id} — Stage 1 output`)
-        console.log('Raw Tavily context:', searchContext)
+        console.log('Raw Tavily context (9 searches):', searchContext)
+        console.log('Verification context (3 searches):', verificationContext)
         console.log('Verified tech stack:', companyProfile?.currentTechStack)
         console.log('Category signals:', companyProfile?.categorySignals)
         console.log('IT maturity:', companyProfile?.itMaturityLevel)
