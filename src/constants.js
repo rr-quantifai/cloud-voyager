@@ -22,6 +22,7 @@ export const PRODUCTS_BY_CATEGORY = {
   'Security': [
     'Microsoft Entra ID',
     'Microsoft Defender for Endpoint',
+    'Microsoft Intune',
     'Microsoft Defender for Cloud',
     'Microsoft Purview',
     'Microsoft Sentinel',
@@ -32,10 +33,12 @@ export const PRODUCTS_BY_CATEGORY = {
     'Azure OpenAI Service',
     'Azure AI Studio',
     'Azure Machine Learning',
+    'Microsoft Fabric',
   ],
   'BizApps': [
     'Power Platform',
     'Dynamics 365 Sales',
+    'Dynamics 365 Customer Service',
     'Dynamics 365 Finance and Operations',
   ],
 }

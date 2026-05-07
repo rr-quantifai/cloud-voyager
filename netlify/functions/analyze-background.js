@@ -32,6 +32,7 @@ const PRODUCTS = [
   { name: 'Microsoft Viva',                          category: 'Modern Work' },
   { name: 'Microsoft Entra ID',                      category: 'Security'    },
   { name: 'Microsoft Defender for Endpoint',         category: 'Security'    },
+  { name: 'Microsoft Intune',                        category: 'Security'    },
   { name: 'Microsoft Defender for Cloud',            category: 'Security'    },
   { name: 'Microsoft Purview',                       category: 'Security'    },
   { name: 'Microsoft Sentinel',                      category: 'Security'    },
@@ -40,10 +41,289 @@ const PRODUCTS = [
   { name: 'Azure OpenAI Service',                    category: 'AI'          },
   { name: 'Azure AI Studio',                         category: 'AI'          },
   { name: 'Azure Machine Learning',                  category: 'AI'          },
+  { name: 'Microsoft Fabric',                        category: 'AI'          },
   { name: 'Power Platform',                          category: 'BizApps'     },
   { name: 'Dynamics 365 Sales',                      category: 'BizApps'     },
+  { name: 'Dynamics 365 Customer Service',           category: 'BizApps'     },
   { name: 'Dynamics 365 Finance and Operations',     category: 'BizApps'     },
 ];
+
+// ── Microsoft product alias map ───────────────────────────────────────────────
+// Lowercase aliases → exact catalogue SKU names.
+// Covers abbreviations, rebranded names, and component names that roll up to a SKU.
+// Used in post-processing to resolve Claude's near-misses without burdening the prompt.
+
+const MS_PRODUCT_ALIASES = {
+  // Azure Virtual Machines
+  'azure virtual machine':             'Azure Virtual Machines',
+  'azure vms':                         'Azure Virtual Machines',
+  'azure vm':                          'Azure Virtual Machines',
+  'azure iaas':                        'Azure Virtual Machines',
+  'azure compute':                     'Azure Virtual Machines',
+  'azure cloud servers':               'Azure Virtual Machines',
+  'azure servers':                     'Azure Virtual Machines',
+  'azure cloud infrastructure':        'Azure Virtual Machines',
+
+  // Azure SQL and Cosmos DB
+  'azure sql':                         'Azure SQL and Cosmos DB',
+  'azure sql database':                'Azure SQL and Cosmos DB',
+  'azure database':                    'Azure SQL and Cosmos DB',
+  'cosmos db':                         'Azure SQL and Cosmos DB',
+  'cosmosdb':                          'Azure SQL and Cosmos DB',
+  'azure cosmos':                      'Azure SQL and Cosmos DB',
+  'azure cosmos db':                   'Azure SQL and Cosmos DB',
+  'azure nosql':                       'Azure SQL and Cosmos DB',
+  'azure managed database':            'Azure SQL and Cosmos DB',
+  'sql on azure':                      'Azure SQL and Cosmos DB',
+
+  // Azure Storage and Data Lake
+  'azure storage':                     'Azure Storage and Data Lake',
+  'azure blob storage':                'Azure Storage and Data Lake',
+  'azure blob':                        'Azure Storage and Data Lake',
+  'azure data lake':                   'Azure Storage and Data Lake',
+  'adls':                              'Azure Storage and Data Lake',
+  'azure data lake storage':           'Azure Storage and Data Lake',
+  'azure file storage':                'Azure Storage and Data Lake',
+  'azure object storage':              'Azure Storage and Data Lake',
+  'azure storage account':             'Azure Storage and Data Lake',
+
+  // Azure App Service
+  'azure web apps':                    'Azure App Service',
+  'azure web app':                     'Azure App Service',
+  'azure paas':                        'Azure App Service',
+  'azure web hosting':                 'Azure App Service',
+  'azure function apps':               'Azure App Service',
+  'azure functions':                   'Azure App Service',
+  'azure logic apps':                  'Azure App Service',
+
+  // Azure Kubernetes Service
+  'aks':                               'Azure Kubernetes Service',
+  'kubernetes on azure':               'Azure Kubernetes Service',
+  'azure containers':                  'Azure Kubernetes Service',
+  'azure container service':           'Azure Kubernetes Service',
+  'azure container instances':         'Azure Kubernetes Service',
+  'azure microservices':               'Azure Kubernetes Service',
+  'azure k8s':                         'Azure Kubernetes Service',
+  'azure container registry':          'Azure Kubernetes Service',
+
+  // Microsoft 365 E3/E5
+  'microsoft 365':                     'Microsoft 365 E3/E5',
+  'm365':                              'Microsoft 365 E3/E5',
+  'office 365':                        'Microsoft 365 E3/E5',
+  'o365':                              'Microsoft 365 E3/E5',
+  'exchange online':                   'Microsoft 365 E3/E5',
+  'microsoft exchange':                'Microsoft 365 E3/E5',
+  'microsoft email':                   'Microsoft 365 E3/E5',
+  'microsoft outlook':                 'Microsoft 365 E3/E5',
+  'outlook online':                    'Microsoft 365 E3/E5',
+  'microsoft office':                  'Microsoft 365 E3/E5',
+  'office suite':                      'Microsoft 365 E3/E5',
+  'microsoft productivity':            'Microsoft 365 E3/E5',
+  'microsoft 365 e3':                  'Microsoft 365 E3/E5',
+  'microsoft 365 e5':                  'Microsoft 365 E3/E5',
+  'office 365 e3':                     'Microsoft 365 E3/E5',
+  'office 365 e5':                     'Microsoft 365 E3/E5',
+  'microsoft 365 business':            'Microsoft 365 E3/E5',
+
+  // Microsoft Teams
+  'ms teams':                          'Microsoft Teams',
+  'teams calling':                     'Microsoft Teams',
+  'teams meetings':                    'Microsoft Teams',
+  'teams voice':                       'Microsoft Teams',
+  'teams phone':                       'Microsoft Teams',
+  'microsoft teams rooms':             'Microsoft Teams',
+  'teams premium':                     'Microsoft Teams',
+  'microsoft teams premium':           'Microsoft Teams',
+
+  // SharePoint Online
+  'sharepoint':                        'SharePoint Online',
+  'microsoft sharepoint':              'SharePoint Online',
+  'sp online':                         'SharePoint Online',
+  'microsoft intranet':                'SharePoint Online',
+  'sharepoint intranet':               'SharePoint Online',
+  'sharepoint on-premises':            'SharePoint Online',
+  'sharepoint farm':                   'SharePoint Online',
+  'sharepoint server':                 'SharePoint Online',
+
+  // Microsoft Viva
+  'viva':                              'Microsoft Viva',
+  'microsoft viva':                    'Microsoft Viva',
+  'viva insights':                     'Microsoft Viva',
+  'viva engage':                       'Microsoft Viva',
+  'viva learning':                     'Microsoft Viva',
+  'viva connections':                  'Microsoft Viva',
+  'viva suite':                        'Microsoft Viva',
+  'microsoft employee experience':     'Microsoft Viva',
+
+  // Microsoft Entra ID
+  'microsoft entra':                   'Microsoft Entra ID',
+  'entra id':                          'Microsoft Entra ID',
+  'azure active directory':            'Microsoft Entra ID',
+  'azure ad':                          'Microsoft Entra ID',
+  'aad':                               'Microsoft Entra ID',
+  'azure ad b2c':                      'Microsoft Entra ID',
+  'azure ad b2b':                      'Microsoft Entra ID',
+  'microsoft identity platform':       'Microsoft Entra ID',
+  'microsoft identity':                'Microsoft Entra ID',
+  'microsoft sso':                     'Microsoft Entra ID',
+  'microsoft mfa':                     'Microsoft Entra ID',
+  'microsoft conditional access':      'Microsoft Entra ID',
+  'ems e3':                            'Microsoft Entra ID',
+  'ems e5':                            'Microsoft Entra ID',
+  'enterprise mobility + security e3': 'Microsoft Entra ID',
+  'enterprise mobility + security e5': 'Microsoft Entra ID',
+  'enterprise mobility and security e3': 'Microsoft Entra ID',
+  'enterprise mobility and security e5': 'Microsoft Entra ID',
+
+  // Microsoft Defender for Endpoint
+  'defender for endpoint':             'Microsoft Defender for Endpoint',
+  'mde':                               'Microsoft Defender for Endpoint',
+  'microsoft endpoint protection':     'Microsoft Defender for Endpoint',
+  'microsoft edr':                     'Microsoft Defender for Endpoint',
+  'windows defender atp':              'Microsoft Defender for Endpoint',
+  'mdatp':                             'Microsoft Defender for Endpoint',
+  'microsoft endpoint security':       'Microsoft Defender for Endpoint',
+
+  // Microsoft Defender for Cloud
+  'azure security center':             'Microsoft Defender for Cloud',
+  'asc':                               'Microsoft Defender for Cloud',
+  'azure defender':                    'Microsoft Defender for Cloud',
+  'microsoft cspm':                    'Microsoft Defender for Cloud',
+  'microsoft cloud security posture':  'Microsoft Defender for Cloud',
+
+  // Microsoft Intune
+  'microsoft intune':                  'Microsoft Intune',
+  'intune':                            'Microsoft Intune',
+  'microsoft endpoint manager':        'Microsoft Intune',
+  'microsoft mem':                     'Microsoft Intune',
+  'microsoft mdm':                     'Microsoft Intune',
+  'microsoft mobile device management': 'Microsoft Intune',
+
+  // Microsoft Purview
+  'azure purview':                     'Microsoft Purview',
+  'microsoft data governance':         'Microsoft Purview',
+  'microsoft compliance':              'Microsoft Purview',
+  'microsoft information protection':  'Microsoft Purview',
+  'mip':                               'Microsoft Purview',
+  'microsoft dlp':                     'Microsoft Purview',
+  'microsoft data catalog':            'Microsoft Purview',
+  'microsoft compliance center':       'Microsoft Purview',
+  'office 365 compliance':             'Microsoft Purview',
+  'microsoft data classification':     'Microsoft Purview',
+  'azure information protection':      'Microsoft Purview',
+  'azure information protection p1':   'Microsoft Purview',
+  'azure information protection p2':   'Microsoft Purview',
+  'aip':                               'Microsoft Purview',
+  'microsoft priva':                   'Microsoft Purview',
+  'priva privacy risk management':     'Microsoft Purview',
+  'priva subject rights':              'Microsoft Purview',
+
+  // Microsoft Sentinel
+  'azure sentinel':                    'Microsoft Sentinel',
+  'microsoft siem':                    'Microsoft Sentinel',
+  'microsoft soc platform':            'Microsoft Sentinel',
+  'microsoft threat detection':        'Microsoft Sentinel',
+  'microsoft security analytics':      'Microsoft Sentinel',
+
+  // Microsoft Copilot for M365
+  'copilot for microsoft 365':         'Microsoft Copilot for M365',
+  'copilot for m365':                  'Microsoft Copilot for M365',
+  'm365 copilot':                      'Microsoft Copilot for M365',
+  'microsoft 365 copilot':             'Microsoft Copilot for M365',
+  'copilot in teams':                  'Microsoft Copilot for M365',
+  'copilot in word':                   'Microsoft Copilot for M365',
+  'copilot in excel':                  'Microsoft Copilot for M365',
+  'microsoft ai assistant':            'Microsoft Copilot for M365',
+  'copilot for sales':                 'Microsoft Copilot for M365',
+  'microsoft 365 copilot for sales':   'Microsoft Copilot for M365',
+  'sales copilot':                     'Microsoft Copilot for M365',
+  'copilot for service':               'Microsoft Copilot for M365',
+  'microsoft 365 copilot for service': 'Microsoft Copilot for M365',
+
+  // Copilot Studio
+  'power virtual agents':              'Copilot Studio',
+  'pva':                               'Copilot Studio',
+  'microsoft chatbot':                 'Copilot Studio',
+  'microsoft bot framework':           'Copilot Studio',
+  'microsoft virtual agent':           'Copilot Studio',
+  'microsoft conversational ai':       'Copilot Studio',
+
+  // Azure OpenAI Service
+  'azure openai':                      'Azure OpenAI Service',
+  'openai on azure':                   'Azure OpenAI Service',
+  'gpt on azure':                      'Azure OpenAI Service',
+  'chatgpt on azure':                  'Azure OpenAI Service',
+  'azure gpt':                         'Azure OpenAI Service',
+  'microsoft generative ai':           'Azure OpenAI Service',
+  'azure generative ai':               'Azure OpenAI Service',
+  'azure llm':                         'Azure OpenAI Service',
+  'azure openai reservation':          'Azure OpenAI Service',
+  'azure openai provisioned':          'Azure OpenAI Service',
+  'azure openai provisioned managed':  'Azure OpenAI Service',
+
+  // Azure AI Studio
+  'azure ai studio':                   'Azure AI Studio',
+  'microsoft ai studio':               'Azure AI Studio',
+  'azure ai foundry':                  'Azure AI Studio',
+
+  // Azure Machine Learning
+  'azure ml':                          'Azure Machine Learning',
+  'aml':                               'Azure Machine Learning',
+  'microsoft ml platform':             'Azure Machine Learning',
+  'machine learning on azure':         'Azure Machine Learning',
+  'azure mlops':                       'Azure Machine Learning',
+  'azure machine learning studio':     'Azure Machine Learning',
+
+  // Microsoft Fabric
+  'microsoft fabric':                  'Microsoft Fabric',
+  'fabric capacity':                   'Microsoft Fabric',
+  'azure synapse':                     'Microsoft Fabric',
+  'azure synapse analytics':           'Microsoft Fabric',
+
+  // Power Platform
+  'microsoft power platform':          'Power Platform',
+  'power bi':                          'Power Platform',
+  'power apps':                        'Power Platform',
+  'powerapps':                         'Power Platform',
+  'power automate':                    'Power Platform',
+  'microsoft flow':                    'Power Platform',
+  'power bi premium':                  'Power Platform',
+  'power bi desktop':                  'Power Platform',
+  'microsoft rpa':                     'Power Platform',
+  'microsoft low-code':                'Power Platform',
+  'microsoft low code':                'Power Platform',
+
+  // Dynamics 365 Sales
+  'dynamics crm':                      'Dynamics 365 Sales',
+  'd365 sales':                        'Dynamics 365 Sales',
+  'dynamics 365 crm':                  'Dynamics 365 Sales',
+  'microsoft crm':                     'Dynamics 365 Sales',
+  'dynamics sales':                    'Dynamics 365 Sales',
+  'microsoft dynamics crm':            'Dynamics 365 Sales',
+  'dynamics 365 customer engagement':  'Dynamics 365 Sales',
+
+  // Dynamics 365 Customer Service
+  'dynamics 365 customer service':     'Dynamics 365 Customer Service',
+  'd365 customer service':             'Dynamics 365 Customer Service',
+  'dynamics customer service':         'Dynamics 365 Customer Service',
+
+  // Dynamics 365 Finance and Operations
+  'dynamics 365 finance':              'Dynamics 365 Finance and Operations',
+  'dynamics 365 operations':           'Dynamics 365 Finance and Operations',
+  'd365 f&o':                          'Dynamics 365 Finance and Operations',
+  'd365 fo':                           'Dynamics 365 Finance and Operations',
+  'dynamics ax':                       'Dynamics 365 Finance and Operations',
+  'dynamics nav':                      'Dynamics 365 Finance and Operations',
+  'microsoft erp':                     'Dynamics 365 Finance and Operations',
+  'dynamics 365 business central':     'Dynamics 365 Finance and Operations',
+  'microsoft dynamics ax':             'Dynamics 365 Finance and Operations',
+  'microsoft dynamics nav':            'Dynamics 365 Finance and Operations',
+  'd365 finance':                      'Dynamics 365 Finance and Operations',
+  'dynamics 365 supply chain management': 'Dynamics 365 Finance and Operations',
+  'dynamics supply chain management':  'Dynamics 365 Finance and Operations',
+  'dynamics 365 scm':                  'Dynamics 365 Finance and Operations',
+  'd365 scm':                          'Dynamics 365 Finance and Operations',
+};
 
 // ── Scoring rubric ────────────────────────────────────────────────────────────
 
@@ -105,6 +385,14 @@ Microsoft Defender for Endpoint
   High: M365 E5 owned (Defender included but not activated)
   Moderate: recent public cybersecurity incident
 
+Microsoft Intune
+  Very High: regulated industry (finance, healthcare, government) with BYOD or distributed workforce programme
+  High: Microsoft Defender for Endpoint already owned
+  High: M365 E3/E5 owned (Intune typically bundled but not activated)
+  High: hybrid work or remote workforce expansion signalled
+  Moderate: endpoint management or MDM migration programme evident
+  Reduce: fewer than 200 employees or fully office-bound workforce
+
 Microsoft Defender for Cloud
   Very High: Azure IaaS or multi-cloud environment owned
   High: DevSecOps signals
@@ -148,10 +436,26 @@ Azure Machine Learning
   High: predictive analytics use cases evident
   Moderate: financial services, logistics, or manufacturing
 
+Microsoft Fabric
+  Very High: Power BI already owned and data engineering team or analytics investment present
+  Very High: Azure Synapse Analytics or Azure Data Factory in use
+  High: AI adoption announced and data infrastructure is the stated gap
+  High: financial services, retail, or manufacturing with advanced analytics signals
+  Moderate: BI consolidation or data platform modernisation programme signalled
+  Reduce: no existing data infrastructure or very low IT maturity
+
 Dynamics 365 Sales
   High: CRM in use (Salesforce, SAP CRM, HubSpot)
   High: Power Platform already owned
   Moderate: complex sales processes or partner channels
+
+Dynamics 365 Customer Service
+  Very High: legacy contact centre platform in use (Avaya, Cisco, Genesys, Salesforce Service Cloud, Zendesk)
+  High: Dynamics 365 Sales already owned
+  High: Power Platform already owned
+  High: large B2C operation with high customer interaction volume
+  Moderate: customer experience transformation programme publicly signalled
+  Reduce: B2B-only operation with no direct customer service function
 
 Dynamics 365 Finance and Operations
   High: SAP, Oracle ERP, or legacy Dynamics AX or NAV in use
@@ -193,14 +497,18 @@ HARD OVERRIDES:
 // ── Cross-sell trigger map ────────────────────────────────────────────────────
 
 const CROSS_SELL_MAP = `
-If customer owns any Azure Cloud product → High propensity for: Microsoft Defender for Cloud, Microsoft Sentinel, Azure OpenAI Service
-If customer owns Microsoft 365 E3/E5 → High propensity for: Microsoft Copilot for M365, Microsoft Purview, Microsoft Defender for Endpoint
+If customer owns any Azure Cloud product → High propensity for: Microsoft Defender for Cloud, Microsoft Sentinel, Azure OpenAI Service, Microsoft Fabric
+If customer owns Microsoft 365 E3/E5 → High propensity for: Microsoft Copilot for M365, Microsoft Purview, Microsoft Defender for Endpoint, Microsoft Intune
 If customer owns Microsoft Teams → High propensity for: Microsoft Viva, Copilot Studio, SharePoint Online
-If customer owns Azure OpenAI Service → High propensity for: Azure AI Studio, Azure Machine Learning, Copilot Studio
-If customer owns Dynamics 365 Sales or Dynamics 365 Finance and Operations → High propensity for: Copilot Studio, Power Platform, Microsoft Entra ID
-If customer owns Power Platform → High propensity for: Dynamics 365 Sales, Copilot Studio, Azure SQL and Cosmos DB
+If customer owns Azure OpenAI Service → High propensity for: Azure AI Studio, Azure Machine Learning, Copilot Studio, Microsoft Fabric
+If customer owns Dynamics 365 Sales or Dynamics 365 Finance and Operations → High propensity for: Copilot Studio, Power Platform, Microsoft Entra ID, Dynamics 365 Customer Service
+If customer owns Dynamics 365 Customer Service → High propensity for: Copilot Studio, Power Platform, Microsoft Copilot for M365
+If customer owns Power Platform → High propensity for: Dynamics 365 Sales, Dynamics 365 Customer Service, Copilot Studio, Azure SQL and Cosmos DB
 If customer owns Microsoft Sentinel → High propensity for: Microsoft Purview, Microsoft Defender for Cloud
-If customer owns Microsoft Entra ID → High propensity for: Microsoft Defender for Endpoint, Microsoft Purview
+If customer owns Microsoft Entra ID → High propensity for: Microsoft Defender for Endpoint, Microsoft Intune, Microsoft Purview
+If customer owns Microsoft Defender for Endpoint → High propensity for: Microsoft Intune, Microsoft Entra ID
+If customer owns Microsoft Intune → High propensity for: Microsoft Defender for Endpoint, Microsoft Entra ID
+If customer owns Microsoft Fabric → High propensity for: Azure OpenAI Service, Azure Machine Learning, Azure SQL and Cosmos DB
 `.trim();
 
 // ── Error messages ────────────────────────────────────────────────────────────
@@ -246,6 +554,75 @@ function truncateToTokens(str, maxTokens) {
 
 function stripFences(text) {
   return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+}
+
+// Derived from PRODUCTS — recognises exact SKU strings in post-processing.
+const MS_PRODUCT_SET = new Set(PRODUCTS.map(p => p.name));
+
+// Microsoft brand/product keywords — signals containing these but unresolvable
+// to a specific SKU are routed to categorySignals rather than currentTechStack.
+const MS_KEYWORDS = [
+  'microsoft', 'azure', 'office 365', 'exchange online', 'sharepoint',
+  'dynamics', 'copilot', 'sentinel', 'purview', 'entra', 'defender',
+  'power platform', 'power bi', 'power apps', 'power automate', 'viva',
+  'windows 365',
+];
+
+// Substrings that mark a signal as non-commercial or unresolved.
+const NOISE_PATTERNS = [
+  'vendor unconfirmed', 'unspecified', 'unknown vendor',
+  'private-cloud hosted', 'custom-built', 'bespoke',
+  'proprietary system', 'internal application', 'internal app',
+];
+
+/**
+ * Resolves a free-text signal to an exact MS catalogue SKU.
+ * Pass 1: exact lookup. Pass 2: substring match for aliases > 7 chars.
+ * Returns null if no alias matches.
+ */
+function resolveViAliasMap(signal) {
+  if (typeof signal !== 'string') return null;
+  const lower = signal.toLowerCase().trim();
+  if (MS_PRODUCT_ALIASES[lower]) return MS_PRODUCT_ALIASES[lower];
+  for (const [alias, sku] of Object.entries(MS_PRODUCT_ALIASES)) {
+    if (alias.length > 7 && lower.includes(alias)) return sku;
+  }
+  return null;
+}
+
+/**
+ * Post-processes Claude's Stage 1 tech stack output.
+ * Four-pass safety net applied after the prompt:
+ *   1. Exact SKU match        → keep
+ *   2. Alias map hit          → replace with canonical SKU name
+ *   3. MS keyword present     → move to categorySignals (unresolved MS signal)
+ *   4. Noise pattern present  → move to categorySignals (non-commercial signal)
+ *   5. Remainder              → keep as non-MS commercial product
+ */
+function postProcessTechStack(techStack, categorySignals) {
+  const cleaned = [];
+  const signals = Array.isArray(categorySignals) ? [...categorySignals] : [];
+
+  for (const item of (Array.isArray(techStack) ? techStack : [])) {
+    if (typeof item !== 'string' || !item.trim()) continue;
+    const lower = item.toLowerCase();
+
+    if (MS_PRODUCT_SET.has(item))                        { cleaned.push(item); continue; }
+
+    const resolved = resolveViAliasMap(item);
+    if (resolved)                                         { if (!cleaned.includes(resolved)) cleaned.push(resolved); continue; }
+
+    if (MS_KEYWORDS.some(kw => lower.includes(kw)))      { signals.push(`Microsoft technology signal — specific product unresolved: ${item}`); continue; }
+
+    if (NOISE_PATTERNS.some(p => lower.includes(p)))     { if (item.trim().length > 15) signals.push(item); continue; }
+
+    cleaned.push(item);
+  }
+
+  return {
+    currentTechStack: [...new Set(cleaned)],
+    categorySignals:  [...new Set(signals)],
+  };
 }
 
 // ── Tavily ────────────────────────────────────────────────────────────────────
@@ -460,8 +837,11 @@ Microsoft workload inference — map to exact catalogue name:
   Machine learning, predictive analytics, data science → Azure Machine Learning
   AI model development platform → Azure AI Studio
   CRM, sales management, pipeline management → Dynamics 365 Sales
+  Contact centre, customer service platform, customer support, helpdesk → Dynamics 365 Customer Service
   ERP, finance, operations, accounting, supply chain → Dynamics 365 Finance and Operations
   Low-code, Power BI, Power Apps, workflow automation, RPA → Power Platform
+  Endpoint management, MDM, mobile device management, device compliance → Microsoft Intune
+  Data platform, data lakehouse, unified analytics, data engineering, Synapse → Microsoft Fabric
   Employee experience, HR platform, workforce engagement → Microsoft Viva
   Document management, intranet, file sharing → SharePoint Online
 
@@ -472,7 +852,12 @@ The signal confirms a vendor or technology category is present but provides insu
 Format: "[Vendor/category] presence confirmed — specific product unknown"
 Examples: "Microsoft cloud products" → "Microsoft cloud presence confirmed — specific product unknown"; "SAP across the business" → "SAP enterprise software confirmed — specific product unknown"; "uses AI tools" → "AI tooling presence confirmed — specific product unknown"
 
-Programming languages, frameworks, scripting tools, infrastructure protocols, and open-source libraries are not products — exclude them entirely.
+COMMERCIAL PRODUCT FILTER — apply before any bucket:
+Exclude entirely (no bucket, no categorySignals): programming languages, scripting tools, frameworks, protocols, open-source libraries, and internal or bespoke applications with no external commercial vendor.
+
+Bucket C applies to: a vendor or technology category that is confirmed but whose specific product cannot be resolved — add a concise signal to categorySignals, do not add to currentTechStack.
+
+MICROSOFT HARD RULE: Any signal referencing Microsoft, Azure, Office, Exchange, SharePoint, Teams, Dynamics, Copilot, Sentinel, Purview, Entra, Defender, Power BI, Power Apps, or Viva that cannot be mapped to an exact name from the UNOWNED PRODUCTS list via Bucket A or Bucket B must go to categorySignals — never into currentTechStack under any non-catalogue name.
 
 OWNED PRODUCTS (already confirmed — exclude from currentTechStack and categorySignals): ${ownedStr}
 UNOWNED PRODUCTS (use exact names): ${unownedStr}
@@ -601,7 +986,7 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
     "website": "",
     "industry": "", "subIndustry": "", "estimatedSize": "",
     "hqLocation": "", "operatingRegions": [],
-    "currentTechStack": [], "itMaturityLevel": "",
+    "itMaturityLevel": "",
     "keyBusinessChallenges": [], "implementationReadiness": "",
     "summary": "", "dataConfidence": ""
   },
@@ -614,10 +999,7 @@ label must be exactly one of: Very High, High, Moderate, Low.
 
 Return productScores sorted descending by score.
 
-VERIFIED TECHNOLOGY STACK (established in Stage 1 through double-verified search — treat as confirmed ground truth, do not contradict):
-Confirmed: ${verifiedTechStack.join(', ') || 'None confirmed'}
-
-When populating currentTechStack in your response, use this verified list as the basis. Do not add or remove products from the confirmed list unless current intelligence provides a direct contradiction with a named source.
+VERIFIED TECHNOLOGY STACK (established in Stage 1 — frozen, do not reproduce or modify in your response): ${verifiedTechStack.join(', ') || 'None confirmed'}
 
 CATEGORY SIGNALS (confirmed in Stage 1 but could not be resolved to a specific product — weave into the summary paragraph as discovery angles, not confirmed facts):
 ${categorySignals.length > 0 ? categorySignals.join('\n') : 'None'}
@@ -666,12 +1048,17 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
     throw new Error('Something went wrong — Claude response is missing required fields');
   }
 
-  const companyProfile = stripPeriods(call2);
+  const stripped = stripPeriods(call2);
+  const { currentTechStack, categorySignals: processedSignals } = postProcessTechStack(
+    stripped.currentTechStack || [],
+    stripped.categorySignals  || [],
+  );
+  const companyProfile = { ...stripped, currentTechStack, categorySignals: processedSignals };
 
   // Step 5 — Return result for Blobs write
   return {
     companyProfile,
-    categorySignals: companyProfile.categorySignals || [],
+    categorySignals: processedSignals,
     searchContext:   context,
     modelVersion:    model,
   };
@@ -703,9 +1090,12 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
     label: labelFromScore(Number(ps.score) || 0),
   }));
 
+  // Freeze tech stack from Stage 1 — Stage 2 never modifies it
+  const frozenProfile = { ...stripPeriods(call3.companyProfile), currentTechStack: verifiedTechStack };
+
   // Step 3 — Return result for Blobs write
   return {
-    companyProfile: stripPeriods(call3.companyProfile),
+    companyProfile: frozenProfile,
     productScores:  stripPeriods(productScores),
     modelVersion:   model,
   };
