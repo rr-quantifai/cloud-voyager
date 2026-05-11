@@ -1104,7 +1104,10 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   }));
 
   // Freeze tech stack from Stage 1 — Stage 2 never modifies it
-  const frozenProfile = { ...stripPeriods(call3.companyProfile), currentTechStack: verifiedTechStack };
+  const validConfidence = new Set(['High', 'Medium', 'Low']);
+const profileData = stripPeriods(call3.companyProfile);
+if (!validConfidence.has(profileData.dataConfidence)) profileData.dataConfidence = 'Medium';
+const frozenProfile = { ...profileData, currentTechStack: verifiedTechStack };
 
   // Step 3 — Return result for Blobs write
   return {

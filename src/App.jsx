@@ -834,7 +834,7 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
           <div className="flex items-center gap-3 px-4 py-4">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Data Confidence</span>
             <span className="text-slate-300">·</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${CONFIDENCE_CLS[profile.dataConfidence] || 'bg-slate-100 text-slate-500'}`}>{profile.dataConfidence}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${CONFIDENCE_CLS[profile.dataConfidence] || 'bg-slate-100 text-slate-500'}`}>{CONFIDENCE_CLS[profile.dataConfidence] ? profile.dataConfidence : '—'}</span>
           </div>
           <div className="px-4 pt-4 pb-4 border-t border-slate-200">
             <div className="flex items-center gap-2 mb-3">
