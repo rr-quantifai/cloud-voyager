@@ -833,7 +833,7 @@ The signal names a vendor or service but also describes a specific workload or f
 
 If Round 2 verification explicitly contradicts or casts doubt on a Round 1 signal, the product must not appear in currentTechStack — route to categorySignals instead regardless of how strong the Round 1 signal was.
 
-If a named product variant exists that does not match any exact catalogue SKU name — such as a product marketed under a different tier, edition, or audience segment — do not silently upgrade or downgrade to the nearest catalogue SKU. Route to categorySignals with the exact variant name noted.
+If a named product variant exists that does not match any exact catalogue SKU name — such as a product marketed under a different tier, edition, or audience segment — do not silently upgrade or downgrade to the nearest catalogue SKU. Route to categorySignals with the exact variant name noted. Exception: for catalogue SKUs that explicitly enumerate multiple tiers in their name (such as "Microsoft 365 E3/E5"), any confirmed mention of a covered tier (E3 or E5) constitutes a Bucket A confirmation — do not treat tier-level confirmation as a variant mismatch.
 
 Microsoft workload inference — map to exact catalogue name:
   Email, messaging, Exchange, Exchange Online → Microsoft 365 E3/E5
@@ -865,6 +865,7 @@ Non-Microsoft workload inference: apply the same principle — identify the work
 
 BUCKET C — Vendor or category confirmed, workload ambiguous
 The signal confirms a vendor or technology category is present but provides insufficient workload context to map defensibly to a single product. Do not add to currentTechStack. Add a concise description to categorySignals instead.
+
 Format: "[Vendor/category] presence confirmed — specific product unknown"
 Examples: "Microsoft cloud products" → "Microsoft cloud presence confirmed — specific product unknown"; "SAP across the business" → "SAP enterprise software confirmed — specific product unknown"; "uses AI tools" → "AI tooling presence confirmed — specific product unknown"
 
@@ -872,6 +873,8 @@ COMMERCIAL PRODUCT FILTER — apply before any bucket:
 Exclude entirely (no bucket, no categorySignals): programming languages, scripting tools, frameworks, protocols, open-source libraries, and internal or bespoke applications with no external commercial vendor.
 
 A named commercial product with an identifiable external vendor always belongs in currentTechStack regardless of product category. Middleware, integration platforms, VDI solutions, and similar infrastructure products are commercial products — they are not frameworks, protocols, or open-source libraries and must not be excluded on those grounds.
+
+Uncertainty about a product's specific tier, edition, version, or hosting configuration does not justify routing to categorySignals. If the product name is identifiable and the vendor is external and commercial, it belongs in currentTechStack. Tier or edition uncertainty belongs in a categorySignals note only if the product itself is already in currentTechStack.
 
 Bucket C applies to: a vendor or technology category that is confirmed but whose specific product cannot be resolved — add a concise signal to categorySignals, do not add to currentTechStack.
 
