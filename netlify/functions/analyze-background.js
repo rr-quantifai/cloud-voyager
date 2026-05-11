@@ -830,6 +830,10 @@ Non-Microsoft: use the commercial product name as stated (e.g. "Salesforce", "SA
 BUCKET B — Workload context exists, product is defensibly inferable
 The signal names a vendor or service but also describes a specific workload or function. Map to the single most defensible product. If two products could equally serve this workload, treat as Bucket C instead.
 
+If Round 2 verification explicitly contradicts or casts doubt on a Round 1 signal, the product must not appear in currentTechStack — route to categorySignals instead regardless of how strong the Round 1 signal was.
+
+If a named product variant exists that does not match any exact catalogue SKU name — such as a product marketed under a different tier, edition, or audience segment — do not silently upgrade or downgrade to the nearest catalogue SKU. Route to categorySignals with the exact variant name noted.
+
 Microsoft workload inference — map to exact catalogue name:
   Email, messaging, Exchange, Exchange Online → Microsoft 365 E3/E5
   Cloud compute, virtual servers, VMs, IaaS → Azure Virtual Machines
