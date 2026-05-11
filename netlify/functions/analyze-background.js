@@ -552,8 +552,19 @@ function truncateToTokens(str, maxTokens) {
   return typeof str === 'string' ? str.slice(0, maxTokens * 4) : '';
 }
 
-function stripFences(text) {
-  return text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+function extractJSON(text) {
+  try { return JSON.parse(text.trim()); } catch {}
+  const fenceStripped = text
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .trim();
+  try { return JSON.parse(fenceStripped); } catch {}
+  const start = text.indexOf('{');
+  const end   = text.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    try { return JSON.parse(text.slice(start, end + 1)); } catch {}
+  }
+  return null;
 }
 
 // Derived from PRODUCTS — recognises exact SKU strings in post-processing.
@@ -757,7 +768,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model) {
 
   const data = await res.json();
   const text = data.content?.find(b => b.type === 'text')?.text ?? '';
-  return stripFences(text);
+  return text;
 }
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
@@ -1022,7 +1033,7 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
 
   let rawList;
   try {
-    const parsed = JSON.parse(raw1);
+    const parsed = extractJSON(raw1);
     rawList = Array.isArray(parsed) ? parsed : [];
   } catch {
     rawList = [];
@@ -1037,14 +1048,9 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
   );
   const raw2 = await claudeCall(sys2, user2, anthropicKey, 'sonnet');
 
-  let call2;
-  try {
-    call2 = JSON.parse(raw2);
-  } catch {
-    throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
-  }
+  const call2 = extractJSON(raw2);
   if (!call2 || typeof call2 !== 'object') {
-    throw new Error('Something went wrong — Claude response is missing required fields');
+    throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
   }
 
   const stripped = stripPeriods(call2);
@@ -1075,14 +1081,9 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   );
   const raw3 = await claudeCall(sys3, user3, anthropicKey, 'opus');
 
-  let call3;
-  try {
-    call3 = JSON.parse(raw3);
-  } catch {
+  const call3 = extractJSON(raw3);
+  if (!call3 || !call3.companyProfile || !Array.isArray(call3.productScores)) {
     throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
-  }
-  if (!call3.companyProfile || !Array.isArray(call3.productScores)) {
-    throw new Error('Something went wrong — Claude response is missing required fields');
   }
 
   const productScores = call3.productScores.map(ps => ({
