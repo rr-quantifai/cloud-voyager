@@ -960,7 +960,7 @@ The paragraph must weave together all of the following angles that are relevant 
 - Incumbent displacement: if this product displaces a named system already in use, name the incumbent and state why displacement is viable now
 - Technology dependency: if this product depends on or is enabled by another product the customer already owns or is being recommended, name that product and the specific dependency
 - CTO case: what specific technical problem does this solve or what does it unlock — one concrete statement
-- CFO case: what does this cost less than, replace, or avoid — one concrete statement anchored in a published benchmark or a directional argument if no verified figure exists. Never fabricate a number
+- CFO case: what does this cost less than, replace, or avoid — one concrete statement anchored in a published benchmark or a directional argument if no verified figure exists. Never fabricate a number. If the company context contains a specific price or cost figure for a Microsoft product, use that figure exactly — do not substitute a different number from training memory.
 - CISO case: if applicable, what specific regulatory requirement does this satisfy and what specific control does it provide
 
 Not every angle applies to every product. Include only what is evidenced and relevant. Omit angles that would require fabrication or padding. If a strong upward signal exists but a moderating factor reduced the score, name that moderating factor explicitly in natural language — do not reference numeric scores or adjustments. Do not include base scores, numeric adjustments, or scoring arithmetic in the rationale paragraph.
