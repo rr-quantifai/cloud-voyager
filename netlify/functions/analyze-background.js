@@ -866,6 +866,8 @@ Examples: "Microsoft cloud products" → "Microsoft cloud presence confirmed —
 COMMERCIAL PRODUCT FILTER — apply before any bucket:
 Exclude entirely (no bucket, no categorySignals): programming languages, scripting tools, frameworks, protocols, open-source libraries, and internal or bespoke applications with no external commercial vendor.
 
+A named commercial product with an identifiable external vendor always belongs in currentTechStack regardless of product category. Middleware, integration platforms, VDI solutions, and similar infrastructure products are commercial products — they are not frameworks, protocols, or open-source libraries and must not be excluded on those grounds.
+
 Bucket C applies to: a vendor or technology category that is confirmed but whose specific product cannot be resolved — add a concise signal to categorySignals, do not add to currentTechStack.
 
 MICROSOFT HARD RULE: Any signal referencing Microsoft, Azure, Office, Exchange, SharePoint, Teams, Dynamics, Copilot, Sentinel, Purview, Entra, Defender, Power BI, Power Apps, or Viva that cannot be mapped to an exact name from the UNOWNED PRODUCTS list via Bucket A or Bucket B must go to categorySignals — never into currentTechStack under any non-catalogue name.
@@ -951,7 +953,7 @@ The paragraph must weave together all of the following angles that are relevant 
 - CFO case: what does this cost less than, replace, or avoid — one concrete statement anchored in a published benchmark or a directional argument if no verified figure exists. Never fabricate a number
 - CISO case: if applicable, what specific regulatory requirement does this satisfy and what specific control does it provide
 
-Not every angle applies to every product. Include only what is evidenced and relevant. Omit angles that would require fabrication or padding. Do not include base scores, numeric adjustments, or scoring arithmetic in the rationale paragraph.
+Not every angle applies to every product. Include only what is evidenced and relevant. Omit angles that would require fabrication or padding. If a strong upward signal exists but a moderating factor reduced the score, name that moderating factor explicitly in natural language — do not reference numeric scores or adjustments. Do not include base scores, numeric adjustments, or scoring arithmetic in the rationale paragraph.
 
 Similar rationale across companies in the same industry is acceptable when driven by a shared regulation or sector-wide condition — specificity comes from naming the regulation, the company's current compliance posture, and the specific control gap.
 
