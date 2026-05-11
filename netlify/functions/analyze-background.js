@@ -745,7 +745,7 @@ async function gatherVerificationContext(companyName, rawList, tavilyKey) {
 
 // ── Anthropic ─────────────────────────────────────────────────────────────────
 
-async function claudeCall(systemPrompt, userContent, apiKey, model) {
+async function claudeCall(systemPrompt, userContent, apiKey, model, temperature = 1) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
     headers: {
@@ -754,10 +754,11 @@ async function claudeCall(systemPrompt, userContent, apiKey, model) {
       'Content-Type':      'application/json',
     },
     body: JSON.stringify({
-      model:      resolveModelId(model),
-      max_tokens: 16000,
-      system:     systemPrompt,
-      messages:   [{ role: 'user', content: userContent }],
+      model:       resolveModelId(model),
+      max_tokens:  16000,
+      temperature,
+      system:      systemPrompt,
+      messages:    [{ role: 'user', content: userContent }],
     }),
   });
 
@@ -880,9 +881,15 @@ OWNED PRODUCTS (already confirmed — exclude from currentTechStack and category
 UNOWNED PRODUCTS (use exact names): ${unownedStr}
 
 itMaturityLevel must be exactly one of: High, Moderate, Low.
+
 dataConfidence must be exactly one of: High, Medium, Low.
+
 currentTechStack must be a flat array of plain strings — product names only, no objects, no metadata, no bucket labels.
+
 categorySignals must be a flat array of plain strings — signal descriptions only, no objects.
+
+Use the vendor's official product name exactly as commercially marketed — correct capitalisation, spacing, and punctuation preserved. Do not adopt casing from search results if it differs from the official product name.
+
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
@@ -1035,7 +1042,7 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
 
   // Step 2 — Claude Call 1: raw extraction (Haiku — no reasoning required)
   const { system: sys1, user: user1 } = buildRawExtractionPrompt(context);
-  const raw1 = await claudeCall(sys1, user1, anthropicKey, 'haiku');
+  const raw1 = await claudeCall(sys1, user1, anthropicKey, 'haiku', 0);
 
   let rawList;
   try {
@@ -1052,7 +1059,7 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
   const { system: sys2, user: user2 } = buildVerifiedTechStackPrompt(
     companyName, context, verificationContext, rawList, ownedProducts,
   );
-  const raw2 = await claudeCall(sys2, user2, anthropicKey, 'sonnet');
+  const raw2 = await claudeCall(sys2, user2, anthropicKey, 'sonnet', 0);
 
   const call2 = extractJSON(raw2);
   if (!call2 || typeof call2 !== 'object') {
