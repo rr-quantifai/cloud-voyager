@@ -872,11 +872,7 @@ Examples: "Microsoft cloud products" → "Microsoft cloud presence confirmed —
 COMMERCIAL PRODUCT FILTER — apply before any bucket:
 Exclude entirely (no bucket, no categorySignals): programming languages, scripting tools, frameworks, protocols, open-source libraries, and internal or bespoke applications with no external commercial vendor.
 
-A named commercial product with an identifiable external vendor always belongs in currentTechStack regardless of product category. Middleware, integration platforms, VDI solutions, and similar infrastructure products are commercial products — they are not frameworks, protocols, or open-source libraries and must not be excluded on those grounds.
-
-Uncertainty about a product's specific tier, edition, version, or hosting configuration does not justify routing to categorySignals. If the product name is identifiable and the vendor is external and commercial, it belongs in currentTechStack. Tier or edition uncertainty belongs in a categorySignals note only if the product itself is already in currentTechStack.
-
-Bucket C applies to: a vendor or technology category that is confirmed but whose specific product cannot be resolved — add a concise signal to categorySignals, do not add to currentTechStack.
+Every other named commercial product with an identifiable external vendor belongs in currentTechStack — regardless of product category, Microsoft catalogue membership, tier, edition, version, hosting configuration, or whether it is sold as a standalone product or an integration. Middleware, VDI solutions, integration platforms, and add-ons are commercial products and must not be excluded. If the product name is identifiable and the vendor is real and external, it belongs in currentTechStack. Tier or edition uncertainty may be noted in categorySignals only if the product itself is already in currentTechStack.
 
 MICROSOFT HARD RULE: Any signal referencing Microsoft, Azure, Office, Exchange, SharePoint, Teams, Dynamics, Copilot, Sentinel, Purview, Entra, Defender, Power BI, Power Apps, or Viva that cannot be mapped to an exact name from the UNOWNED PRODUCTS list via Bucket A or Bucket B must go to categorySignals — never into currentTechStack under any non-catalogue name.
 
@@ -889,7 +885,7 @@ dataConfidence must be exactly one of: High, Medium, Low.
 
 currentTechStack must be a flat array of plain strings — product names only, no objects, no metadata, no bucket labels.
 
-categorySignals must be a flat array of plain strings — signal descriptions only, no objects.
+categorySignals must be a flat array of plain strings — signal descriptions only, no objects. Every entry must describe a customer technology signal — a confirmed vendor, product category, or capability. Do not add self-referential notes about classification decisions or bucket assignments — categorySignals is for customer intelligence, not internal reasoning.
 
 Use the vendor's official product name exactly as commercially marketed — correct capitalisation, spacing, and punctuation preserved. Do not adopt casing from search results if it differs from the official product name.
 
