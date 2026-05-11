@@ -394,7 +394,7 @@ Microsoft Intune
   Reduce: fewer than 200 employees or fully office-bound workforce
 
 Microsoft Defender for Cloud
-  Very High: Azure IaaS or multi-cloud environment owned
+  Very High: Azure IaaS owned, or confirmed multi-cloud environment (including non-Azure clouds)
   High: DevSecOps signals
   Moderate: AWS or GCP alongside Azure
 
@@ -612,7 +612,7 @@ function postProcessTechStack(techStack, categorySignals) {
     const resolved = resolveViAliasMap(item);
     if (resolved)                                         { if (!cleaned.includes(resolved)) cleaned.push(resolved); continue; }
 
-    if (MS_KEYWORDS.some(kw => lower.includes(kw)))      { signals.push(`Microsoft technology signal — specific product unresolved: ${item}`); continue; }
+    if (MS_KEYWORDS.some(kw => new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(item))) { signals.push(`Microsoft technology signal — specific product unresolved: ${item}`); continue; }
 
     if (NOISE_PATTERNS.some(p => lower.includes(p)))     { if (item.trim().length > 15) signals.push(item); continue; }
 
@@ -905,7 +905,6 @@ Analyse the company below and return:
 The intelligence below comes from 9 targeted web searches. These plus your own training knowledge of the company, Microsoft products, and the MEA market are your sole intelligence sources. Reason from what is present, score conservatively where signals are absent.
 
 THREE-STEP REASONING:
-
 Step 1 — Build the business picture
 Synthesise industry position, growth stage, financial health, leadership priorities, incumbent vendors, regulatory environment, and regional context. Hiring patterns, news, and competitor displacement data are the most reliable indicators of IT maturity. Do not score anything yet.
 
@@ -933,7 +932,6 @@ RATIONALE RULES:
 Write a single compressed paragraph per product. This paragraph is the sales brief a channel partner reads immediately before a customer conversation — it must be specific, punchy, and free of filler. No generic product descriptions. Every sentence must earn its place.
 
 The paragraph must weave together all of the following angles that are relevant and evidenced for this specific customer:
-
 - Signal: the specific intelligence that makes this product relevant — a regulation, an incumbent system, a hiring pattern, a strategic announcement, an operational gap, or a technology dependency. Name it explicitly
 - Regulatory: if a specific law or framework creates a control gap this product closes, name the regulation, the specific requirement, and the specific control the product provides
 - Incumbent displacement: if this product displaces a named system already in use, name the incumbent and state why displacement is viable now
@@ -942,9 +940,8 @@ The paragraph must weave together all of the following angles that are relevant 
 - CFO case: what does this cost less than, replace, or avoid — one concrete statement anchored in a published benchmark or a directional argument if no verified figure exists. Never fabricate a number
 - CISO case: if applicable, what specific regulatory requirement does this satisfy and what specific control does it provide
 
-Not every angle applies to every product. Include only what is evidenced and relevant. Omit angles that would require fabrication or padding.
+Not every angle applies to every product. Include only what is evidenced and relevant. Omit angles that would require fabrication or padding. Do not include base scores, numeric adjustments, or scoring arithmetic in the rationale paragraph.
 
-Do not end the paragraph with a full stop.
 Similar rationale across companies in the same industry is acceptable when driven by a shared regulation or sector-wide condition — specificity comes from naming the regulation, the company's current compliance posture, and the specific control gap.
 
 SPARSE CONTEXT RULE:
@@ -961,8 +958,6 @@ Weave together all of the following that are evidenced:
 - Strategic direction: public ambitions, digital transformation programmes, regulatory pressures, AI or cloud initiatives
 - What this means for the partner: what conversation to open, what to explore in discovery, what to validate on arrival
 
-Write in flowing prose. No bullet points. No generic observations. Every sentence must add something a partner could not infer from the company name alone. Do not end the paragraph with a full stop.
-
 SCORING RUBRIC:
 ${SCORING_RUBRIC}
 
@@ -975,9 +970,13 @@ ${CROSS_SELL_MAP}
 OWNED PRODUCTS (exclude from scoring): ${ownedStr}
 UNOWNED PRODUCTS (score all): ${unownedStr}
 
-Do not end any text field with a full stop.
-Use sentence case for all text fields — proper nouns, product names, company names, regulations, and acronyms are the only exceptions.
+Do not end any text field with a full stop. Use sentence case for all text fields — proper nouns, product names, company names, regulations, and acronyms are the only exceptions. Write all paragraph fields in flowing prose — no bullet points, no generic observations, and every sentence must add something a partner could not infer from the company name alone.
+
 itMaturityLevel must be exactly one of: High, Moderate, Low.
+
+implementationReadiness must be exactly one of: High, Moderate, Low.
+
+dataConfidence must be exactly one of: High, Medium, Low.
 
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 

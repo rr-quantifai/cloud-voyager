@@ -937,9 +937,7 @@ function PropensityPipeline({ scores }) {
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${cc.bg} ${cc.text}`}>{ps.category}</span>
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed text-justify">
-                  {(ps.rationale || '—').split(/Base score/).map((part, i) =>
-                    i === 0 ? part : <span key={i} className="font-medium">Base score{part}</span>
-                  )}
+                  {ps.rationale || '—'}
                 </p>
               </div>
             )
