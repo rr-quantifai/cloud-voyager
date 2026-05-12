@@ -46,11 +46,11 @@ export const PRODUCTS_BY_CATEGORY = {
 // ─── Category Accent Colours ──────────────────────────────────────────────────
 
 export const CATEGORY_CLASSES = {
-  'Cloud':       { bg: 'bg-blue-100',    text: 'text-blue-700'    },
-  'Modern Work': { bg: 'bg-violet-100',  text: 'text-violet-700'  },
-  'Security':    { bg: 'bg-rose-100',    text: 'text-rose-700'    },
-  'AI':          { bg: 'bg-amber-100',   text: 'text-amber-700'   },
-  'BizApps':     { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  'Cloud':       { bg: 'bg-blue-100',    text: 'text-blue-700',    pillBg: 'bg-blue-50',    pillBorder: 'border-blue-400'    },
+  'Modern Work': { bg: 'bg-violet-100',  text: 'text-violet-700',  pillBg: 'bg-violet-50',  pillBorder: 'border-violet-400'  },
+  'Security':    { bg: 'bg-rose-100',    text: 'text-rose-700',    pillBg: 'bg-rose-50',    pillBorder: 'border-rose-400'    },
+  'AI':          { bg: 'bg-amber-100',   text: 'text-amber-700',   pillBg: 'bg-amber-50',   pillBorder: 'border-amber-400'   },
+  'BizApps':     { bg: 'bg-emerald-100', text: 'text-emerald-700', pillBg: 'bg-emerald-50', pillBorder: 'border-emerald-400' },
 }
 
 /**
