@@ -89,7 +89,7 @@ function CategoryStagesFull({ categoryStages }) {
         return (
           <span
             key={cat}
-            className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${
+            className={`text-xs px-2 py-0.5 rounded-sm font-medium whitespace-nowrap ${
               isNS ? 'bg-slate-100 text-slate-400' : `${cc.bg} ${cc.text}`
             }`}
           >
@@ -868,7 +868,7 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
               <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap">Products Owned</span>
               <span className="text-slate-300 shrink-0">·</span>
               {msOwned.length > 0
-                ? <div className="flex gap-1">{msOwned.map(p => {
+                ? <div className="flex gap-2">{msOwned.map(p => {
                     const cat = PRODUCT_CATEGORY[p]
                     const cc  = CATEGORY_CLASSES[cat] || { bg: 'bg-slate-100', text: 'text-slate-600' }
                     return <span key={p} className={`text-xs px-2 py-0.5 border-l-2 font-medium font-mono tracking-wider shrink-0 ${cc.pillBg} ${cc.pillBorder} ${cc.text}`}>{p.toUpperCase()}</span>
@@ -879,7 +879,7 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
               <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap">Other Microsoft Products</span>
               <span className="text-slate-300 shrink-0">·</span>
               {msFound.length > 0
-                ? <div className="flex gap-1">
+                ? <div className="flex gap-2">
                     {msFound.map(p => (
                       <span key={p} className="text-xs px-2 py-0.5 border-l-2 border-slate-400 font-mono tracking-wider bg-slate-50 text-slate-500 shrink-0">{p.toUpperCase()}</span>
                     ))}
@@ -890,7 +890,7 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
               <span className="text-sm font-medium text-slate-700 shrink-0 whitespace-nowrap">Non-Microsoft Products</span>
               <span className="text-slate-300 shrink-0">·</span>
               {nonMs.length > 0
-                ? <div className="flex gap-1">{nonMs.map(p => (
+                ? <div className="flex gap-2">{nonMs.map(p => (
                     <span key={p} className="text-xs px-2 py-0.5 border-l-2 border-slate-500 font-mono tracking-wider bg-slate-100 text-slate-500 shrink-0">{p.toUpperCase()}</span>
                   ))}</div>
                 : <span className="text-sm text-slate-400">No products to display</span>}
