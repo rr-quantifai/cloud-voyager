@@ -89,7 +89,7 @@ function CategoryStagesFull({ categoryStages }) {
         return (
           <span
             key={cat}
-            className={`text-xs px-2 py-0.5 rounded-sm font-medium whitespace-nowrap ${
+            className={`text-xs px-2 py-0.5 rounded font-medium whitespace-nowrap ${
               isNS ? 'bg-slate-100 text-slate-400' : `${cc.bg} ${cc.text}`
             }`}
           >
