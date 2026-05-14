@@ -161,6 +161,7 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
 
   const [customerId,       setCustomerId]       = useState(isEdit ? customer.id   : '')
   const [customerName,     setCustomerName]     = useState(isEdit ? customer.name : '')
+  const [customerWebsite,  setCustomerWebsite]  = useState(isEdit ? customer.website ?? '' : '')
   const [selectedProducts, setSelectedProducts] = useState(isEdit ? (preSelectedProducts ?? customer.ownedProducts ?? []) : [])
   const [idError,          setIdError]          = useState(null)
   const [nameWarning,      setNameWarning]      = useState(null)
@@ -210,9 +211,9 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
     setSubmitting(true)
     try {
       if (isEdit) {
-        await putCustomer({ ...customer, name: customerName.trim(), ownedProducts: selectedProducts })
+        await putCustomer({ ...customer, name: customerName.trim(), website: customerWebsite.trim(), ownedProducts: selectedProducts })
       } else {
-        await createCustomer({ id: customerId.trim(), name: customerName.trim(), ownedProducts: selectedProducts })
+        await createCustomer({ id: customerId.trim(), name: customerName.trim(), website: customerWebsite.trim(), ownedProducts: selectedProducts })
       }
       onSaved?.()
       onClose()
@@ -224,9 +225,10 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
 
   const hasChanges = !isEdit || (
     customerName.trim() !== customer.name ||
+    customerWebsite.trim() !== (customer.website ?? '') ||
     JSON.stringify([...selectedProducts].sort()) !== JSON.stringify([...(customer.ownedProducts ?? [])].sort())
   )
-  const canSubmit = hasChanges && (isEdit || !idError) && customerId.trim() && customerName.trim() && !submitting
+  const canSubmit = hasChanges && (isEdit || !idError) && customerId.trim() && customerName.trim() && customerWebsite.trim() && !submitting
 
   return createPortal(
     <div
@@ -317,6 +319,22 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
                 'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
                 nameWarning && !nameDismissed ? 'border-amber-300' : 'border-slate-200',
               ].join(' ')}
+            />
+          </div>
+
+          {/* Website */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-700">Website</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-xs text-slate-400">Fill mandatory field</span>
+            </div>
+            <input
+              type="text"
+              value={customerWebsite}
+              onChange={e => setCustomerWebsite(e.target.value)}
+              placeholder="e.g. logicera.com"
+              className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none"
             />
           </div>
 
@@ -1006,7 +1024,7 @@ function CustomerDetailPage() {
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="min-w-0">
             <p className="text-base font-semibold text-slate-700 truncate">{customer.name}</p>
-            <p className="text-xs text-slate-400">{customer.id}{analysis.companyProfile.website ? ` · ${analysis.companyProfile.website}` : ' · Website not found'}</p>
+            <p className="text-xs text-slate-400">{customer.id}{customer.website ? ` · ${customer.website}` : ''}</p>
           </div>
           <button onClick={() => navigate('/')} className="h-8 px-3 rounded-md text-xs font-medium bg-slate-700 text-white enabled:hover:bg-slate-600 transition-colors shrink-0 ml-4">
             Go Back
@@ -1062,9 +1080,10 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
   if (!netlifyKey)   throw new Error('Something went wrong — input Netlify API details and try again')
 
   const basePayload = {
-    customerId:    customer.id,
-    companyName:   customer.name,
-    ownedProducts: customer.ownedProducts ?? [],
+    customerId:     customer.id,
+    companyName:    customer.name,
+    companyWebsite: customer.website ?? '',
+    ownedProducts:  customer.ownedProducts ?? [],
     anthropicKey,
     tavilyKey,
     netlifyKey,
@@ -1076,6 +1095,7 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     verifiedTechStack: priorAnalysis?.companyProfile?.currentTechStack ?? [],
     categorySignals:   priorAnalysis?.categorySignals ?? [],
     searchContext:     priorAnalysis?.searchContext ?? '',
+    disambiguation:    priorAnalysis?.disambiguation ?? null,
   } : {
     ...basePayload,
     stage: 1,
@@ -1120,7 +1140,7 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     }
 
     if (pollData.status === 'complete') {
-      const { companyProfile, productScores, categorySignals, searchContext, verificationContext, modelVersion } = pollData.result
+      const { companyProfile, productScores, categorySignals, searchContext, verificationContext, modelVersion, disambiguation } = pollData.result
 
       if (stage === 1) {
         console.group(`[Cloud Voyager] ${customer.id} — Stage 1 output`)
@@ -1145,7 +1165,7 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
         analyzedAt:    new Date().toISOString(),
         stage,
         companyProfile,
-        ...(stage === 1 ? { categorySignals: categorySignals ?? [], searchContext: searchContext ?? '' } : {}),
+        ...(stage === 1 ? { categorySignals: categorySignals ?? [], searchContext: searchContext ?? '', disambiguation: disambiguation ?? null } : {}),
         ...(stage === 2 ? { productScores } : {}),
         modelVersion:  modelVersion ?? 'sonnet',
       }

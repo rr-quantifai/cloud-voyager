@@ -552,6 +552,15 @@ function truncateToTokens(str, maxTokens) {
   return typeof str === 'string' ? str.slice(0, maxTokens * 4) : '';
 }
 
+function extractDomain(website) {
+  try {
+    const url = website.startsWith('http') ? website : `https://${website}`;
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return website;
+  }
+}
+
 function extractJSON(text) {
   try { return JSON.parse(text.trim()); } catch {}
   const fenceStripped = text
@@ -565,6 +574,25 @@ function extractJSON(text) {
     try { return JSON.parse(text.slice(start, end + 1)); } catch {}
   }
   return null;
+}
+
+async function disambiguate(companyName, companyWebsite, apiKey) {
+  const system = `You are a company intelligence analyst. Return ONLY valid JSON, no preamble, no markdown fences.`;
+  const user = `Given the company name and website below, return a JSON object with exactly these two fields:
+{
+  "country": "the country where this company is headquartered — infer from domain TLD (.ae = UAE, .sa = Saudi Arabia, .com.kw = Kuwait, .qa = Qatar, .bh = Bahrain, .om = Oman, .eg = Egypt, .co.za = South Africa, etc.) or any other signal available to you",
+  "descriptor": "one concise sentence identifying this specific company — include the company name, website, country, and primary industry — e.g. 'Logic Era (logicera.com) is a UAE-based IT solutions and cloud services provider'"
+}
+
+Company name: ${companyName}
+Website: ${companyWebsite}`;
+
+  const raw = await claudeCall(system, user, apiKey, 'haiku', 0);
+  const parsed = extractJSON(raw);
+  return {
+    country:    typeof parsed?.country    === 'string' ? parsed.country    : 'unknown',
+    descriptor: typeof parsed?.descriptor === 'string' ? parsed.descriptor : `${companyName} (${companyWebsite})`,
+  };
 }
 
 // Derived from PRODUCTS — recognises exact SKU strings in post-processing.
@@ -657,20 +685,23 @@ async function tavilySearch(query, apiKey) {
   }
 }
 
-async function gatherContext(companyName, tavilyKey) {
-  const yr  = new Date().getFullYear();
-  const pyr = yr - 1;
+async function gatherContext(companyName, companyWebsite, disambiguation, tavilyKey) {
+  const yr     = new Date().getFullYear();
+  const pyr    = yr - 1;
+  const domain = extractDomain(companyWebsite);
+  const geo    = disambiguation.country !== 'unknown' ? ` ${disambiguation.country}` : '';
+  const pfx    = `${companyName} ${domain}${geo}`;
 
   const searches = [
-    { label: 'Business Strategy and Technology Priorities',  query: `${companyName} technology strategy priorities ${pyr} ${yr}`,                      fbTok: 800  },
-    { label: 'Regulatory and Compliance Obligations',        query: `${companyName} regulatory compliance cybersecurity data protection obligations`,     fbTok: 800  },
-    { label: 'Cloud and IT Infrastructure',                  query: `${companyName} cloud infrastructure data center architecture IT systems`,            fbTok: 800  },
-    { label: 'Enterprise Systems and Legacy Applications',   query: `${companyName} enterprise systems billing ERP CRM operations deployment`,            fbTok: 1200 },
-    { label: 'Security Architecture and Operations',         query: `${companyName} cybersecurity security operations threat detection incident response`, fbTok: 800  },
-    { label: 'AI Data and Analytics Maturity',               query: `${companyName} artificial intelligence data platform analytics machine learning`,    fbTok: 800  },
-    { label: 'Microsoft and Enterprise Software Footprint',  query: `${companyName} Microsoft 365 enterprise software licensing deployment`,              fbTok: 800  },
-    { label: 'Workforce Operations and Scale',               query: `${companyName} workforce employees operations regional scale`,                       fbTok: 800  },
-    { label: 'Contact Centre and Customer Operations',       query: `${companyName} contact centre customer service operations platform`,                 fbTok: 800  },
+    { label: 'Business Strategy and Technology Priorities',  query: `${pfx} technology strategy priorities ${pyr} ${yr}`,                      fbTok: 800  },
+    { label: 'Regulatory and Compliance Obligations',        query: `${pfx} regulatory compliance cybersecurity data protection obligations`,     fbTok: 800  },
+    { label: 'Cloud and IT Infrastructure',                  query: `${pfx} cloud infrastructure data center architecture IT systems`,            fbTok: 800  },
+    { label: 'Enterprise Systems and Legacy Applications',   query: `${pfx} enterprise systems billing ERP CRM operations deployment`,            fbTok: 1200 },
+    { label: 'Security Architecture and Operations',         query: `${pfx} cybersecurity security operations threat detection incident response`, fbTok: 800  },
+    { label: 'AI Data and Analytics Maturity',               query: `${pfx} artificial intelligence data platform analytics machine learning`,    fbTok: 800  },
+    { label: 'Microsoft and Enterprise Software Footprint',  query: `${pfx} Microsoft 365 enterprise software licensing deployment`,              fbTok: 800  },
+    { label: 'Workforce Operations and Scale',               query: `${pfx} workforce employees operations regional scale`,                       fbTok: 800  },
+    { label: 'Contact Centre and Customer Operations',       query: `${pfx} contact centre customer service operations platform`,                 fbTok: 800  },
   ];
 
   const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey)));
@@ -707,24 +738,27 @@ async function gatherContext(companyName, tavilyKey) {
   ].join('\n');
 }
 
-async function gatherVerificationContext(companyName, rawList, tavilyKey) {
+async function gatherVerificationContext(companyName, companyWebsite, disambiguation, rawList, tavilyKey) {
   // Split rawList positionally — extraction already produces well-formed product
   // names; no MS/non-MS classification needed at this stage.
   const firstBatch  = rawList.slice(0, 3).join(' ');
   const secondBatch = rawList.slice(3, 6).join(' ');
+  const domain = extractDomain(companyWebsite);
+  const geo    = disambiguation.country !== 'unknown' ? ` ${disambiguation.country}` : '';
+  const pfx    = `${companyName} ${domain}${geo}`;
 
   const msQuery = firstBatch.length > 0
-    ? `${companyName} ${firstBatch} deployment licensing`
-    : `${companyName} Microsoft software products licensing deployment`;
+    ? `${pfx} ${firstBatch} deployment licensing`
+    : `${pfx} Microsoft software products licensing deployment`;
 
   const nonMsQuery = secondBatch.length > 0
-    ? `${companyName} ${secondBatch} enterprise deployment`
-    : `${companyName} enterprise systems ERP CRM database applications`;
+    ? `${pfx} ${secondBatch} enterprise deployment`
+    : `${pfx} enterprise systems ERP CRM database applications`;
 
   const searches = [
-    { label: 'Technology Product Verification — Batch 1',  query: msQuery,                                                                        fbTok: 800 },
-    { label: 'Technology Product Verification — Batch 2',  query: nonMsQuery,                                                                      fbTok: 800 },
-    { label: 'Cloud Infrastructure and Technology Stack',  query: `${companyName} cloud infrastructure technology stack architecture`,             fbTok: 800 },
+    { label: 'Technology Product Verification — Batch 1',  query: msQuery,                                                              fbTok: 800 },
+    { label: 'Technology Product Verification — Batch 2',  query: nonMsQuery,                                                           fbTok: 800 },
+    { label: 'Cloud Infrastructure and Technology Stack',  query: `${pfx} cloud infrastructure technology stack architecture`,          fbTok: 800 },
   ];
 
   const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey)));
@@ -789,7 +823,7 @@ ${context}`;
   return { system, user };
 }
 
-function buildVerifiedTechStackPrompt(companyName, context, verificationContext, rawList, ownedProducts) {
+function buildVerifiedTechStackPrompt(companyName, disambiguation, context, verificationContext, rawList, ownedProducts) {
   const ownedSet   = new Set(ownedProducts);
   const unowned    = PRODUCTS.filter(p => !ownedSet.has(p.name));
   const unownedStr = unowned.map(p => p.name).join(', ');
@@ -805,7 +839,9 @@ generic, never padded.
 
 Your output will be used directly by a channel partner in a customer meeting.`;
 
-  const user = `YOUR TASK:
+  const user = `COMPANY IDENTITY: ${disambiguation.descriptor}
+
+YOUR TASK:
 Produce a verified technology stack for the company below based on two rounds of search intelligence.
 
 ROUND 1 — Initial search (9 sources):
@@ -892,7 +928,6 @@ Use the vendor's official product name exactly as commercially marketed — corr
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
-  "website": "",
   "currentTechStack": ["product name", "product name"],
   "categorySignals": ["signal description"],
   "itMaturityLevel": "",
@@ -904,7 +939,7 @@ COMPANY NAME: ${companyName}`;
   return { system, user };
 }
 
-function buildProfilePrompt(companyName, context, ownedProducts, verifiedTechStack = [], categorySignals = []) {
+function buildProfilePrompt(companyName, disambiguation, context, ownedProducts, verifiedTechStack = [], categorySignals = []) {
   const ownedSet   = new Set(ownedProducts);
   const unowned    = PRODUCTS.filter(p => !ownedSet.has(p.name));
   const unownedStr = unowned.map(p => `${p.name} (${p.category})`).join(', ');
@@ -920,7 +955,9 @@ generic, never padded.
 
 Your output will be used directly by a channel partner in a customer meeting.`;
 
-  const user = `YOUR TASK:
+  const user = `COMPANY IDENTITY: ${disambiguation.descriptor}
+
+YOUR TASK:
 Analyse the company below and return:
 1. An implementation-focused company profile
 2. A propensity score (0–100) with written rationale for every unowned product — rationale must be specific to this company, not a generic product pitch
@@ -1005,7 +1042,6 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
   "companyProfile": {
-    "website": "",
     "industry": "", "subIndustry": "", "estimatedSize": "",
     "hqLocation": "", "operatingRegions": [],
     "itMaturityLevel": "",
@@ -1035,9 +1071,12 @@ ${context}`;
 
 // ── Stage 1 pipeline ──────────────────────────────────────────────────────────
 
-async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tavilyKey }) {
+async function runStage1Pipeline({ companyName, companyWebsite, ownedProducts, anthropicKey, tavilyKey }) {
+  // Step 0 — Disambiguate company identity
+  const disambiguation = await disambiguate(companyName, companyWebsite, anthropicKey);
+
   // Step 1 — Run 9 Tavily searches
-  const context = await gatherContext(companyName, tavilyKey);
+  const context = await gatherContext(companyName, companyWebsite, disambiguation, tavilyKey);
 
   // Step 2 — Claude Call 1: raw extraction (Haiku — no reasoning required)
   const { system: sys1, user: user1 } = buildRawExtractionPrompt(context);
@@ -1052,11 +1091,11 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
   }
 
   // Step 3 — Run 3 targeted verification searches (queries built from rawList)
-  const verificationContext = await gatherVerificationContext(companyName, rawList, tavilyKey);
+  const verificationContext = await gatherVerificationContext(companyName, companyWebsite, disambiguation, rawList, tavilyKey);
 
   // Step 4 — Claude Call 2: verified tech stack
   const { system: sys2, user: user2 } = buildVerifiedTechStackPrompt(
-    companyName, context, verificationContext, rawList, ownedProducts,
+    companyName, disambiguation, context, verificationContext, rawList, ownedProducts,
   );
   const raw2 = await claudeCall(sys2, user2, anthropicKey, 'sonnet', 0);
 
@@ -1078,18 +1117,19 @@ async function runStage1Pipeline({ companyName, ownedProducts, anthropicKey, tav
     categorySignals:       processedSignals,
     searchContext:         context,
     verificationContext,
+    disambiguation,
     modelVersion:          'sonnet',
   };
 }
 
 // ── Stage 2 pipeline ──────────────────────────────────────────────────────────
 
-async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, categorySignals, searchContext, anthropicKey }) {
+async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, categorySignals, searchContext, disambiguation, anthropicKey }) {
   // Step 1 — No Tavily searches; use searchContext from Stage 1
 
   // Step 2 — Claude Call 3: full profile + propensity scoring
   const { system: sys3, user: user3 } = buildProfilePrompt(
-    companyName, searchContext, ownedProducts, verifiedTechStack, categorySignals,
+    companyName, disambiguation, searchContext, ownedProducts, verifiedTechStack, categorySignals,
   );
   const raw3 = await claudeCall(sys3, user3, anthropicKey, 'opus');
 
@@ -1131,6 +1171,7 @@ exports.handler = async (event) => {
 
   const {
     companyName,
+    companyWebsite               = '',
     ownedProducts                = [],
     anthropicKey,
     tavilyKey,
@@ -1138,9 +1179,10 @@ exports.handler = async (event) => {
     customerId,
     stage                        = 1,
     // Stage 2 specific
-    verifiedTechStack = [],
-    categorySignals   = [],
-    searchContext     = '',
+    verifiedTechStack  = [],
+    categorySignals    = [],
+    searchContext      = '',
+    disambiguation     = null,
   } = body;
 
   // customerId and netlifyKey are required to initialise the store —
@@ -1170,10 +1212,11 @@ exports.handler = async (event) => {
     let result;
     if (resolvedStage === 1) {
       result = await runStage1Pipeline({
-        companyName:   companyName.trim(),
-        ownedProducts: Array.isArray(ownedProducts) ? ownedProducts : [],
-        anthropicKey:  anthropicKey.trim(),
-        tavilyKey:     tavilyKey.trim(),
+        companyName:    companyName.trim(),
+        companyWebsite: typeof companyWebsite === 'string' ? companyWebsite.trim() : '',
+        ownedProducts:  Array.isArray(ownedProducts) ? ownedProducts : [],
+        anthropicKey:   anthropicKey.trim(),
+        tavilyKey:      tavilyKey.trim(),
       });
     } else {
       result = await runStage2Pipeline({
@@ -1182,6 +1225,7 @@ exports.handler = async (event) => {
         verifiedTechStack: Array.isArray(verifiedTechStack) ? verifiedTechStack : [],
         categorySignals:   Array.isArray(categorySignals) ? categorySignals : [],
         searchContext:     typeof searchContext === 'string' ? searchContext : '',
+        disambiguation:    disambiguation && typeof disambiguation === 'object' ? disambiguation : { country: 'unknown', descriptor: companyName.trim() },
         anthropicKey:      anthropicKey.trim(),
       });
     }

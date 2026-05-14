@@ -58,7 +58,7 @@ export async function getAllCustomers() {
  * @param {{ id: string, name: string, ownedProducts: string[] }} params
  * @returns {Promise<object>} the stored record
  */
-export async function createCustomer({ id, name, ownedProducts = [] }) {
+export async function createCustomer({ id, name, website = '', ownedProducts = [] }) {
   const db = await getDB()
   const existing = await db.get(STORES.CUSTOMERS, id)
   if (existing) throw new Error(`Customer with id "${id}" already exists`)
@@ -67,6 +67,7 @@ export async function createCustomer({ id, name, ownedProducts = [] }) {
   const record = {
     id,
     name,
+    website,
     ownedProducts,
     categoryStages: computeCategoryStages(ownedProducts),
     analysisComplete: false,
