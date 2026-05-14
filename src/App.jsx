@@ -164,6 +164,7 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
   const [customerWebsite,  setCustomerWebsite]  = useState(isEdit ? customer.website ?? '' : '')
   const [selectedProducts, setSelectedProducts] = useState(isEdit ? (preSelectedProducts ?? customer.ownedProducts ?? []) : [])
   const [idError,          setIdError]          = useState(null)
+  const [websiteError,     setWebsiteError]     = useState(null)
   const [nameWarning,      setNameWarning]      = useState(null)
   const [nameDismissed,    setNameDismissed]    = useState(false)
   const [allCustomers,     setAllCustomers]     = useState([])
@@ -184,6 +185,32 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
     const exists = allCustomers.some(c => c.id.toLowerCase() === q.toLowerCase())
     setIdError(exists ? 'Customer with the same ID already exists' : null)
   }, [customerId, allCustomers, isEdit])
+
+  // Website validation
+  useEffect(() => {
+    const raw = customerWebsite.trim()
+    if (!raw) { setWebsiteError(null); return }
+    let hostname = ''
+    try {
+      const url = raw.startsWith('http') ? raw : `https://${raw}`
+      hostname = new URL(url).hostname
+    } catch {
+      setWebsiteError('Enter valid website')
+      return
+    }
+    const parts = hostname.split('.')
+    if (parts.length < 2 || parts.at(-1).length < 2) {
+      setWebsiteError('Enter valid website')
+      return
+    }
+    const q = hostname.toLowerCase().replace(/^www\./, '')
+    const exists = allCustomers.some(c => {
+      if (isEdit && c.id === customer.id) return false
+      const normalized = (c.website ?? '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
+      return normalized === q
+    })
+    setWebsiteError(exists ? 'Customer with the same website already exists' : null)
+  }, [customerWebsite, allCustomers, isEdit, customer])
 
   // Name validation
   useEffect(() => {
@@ -228,7 +255,7 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
     customerWebsite.trim() !== (customer.website ?? '') ||
     JSON.stringify([...selectedProducts].sort()) !== JSON.stringify([...(customer.ownedProducts ?? [])].sort())
   )
-  const canSubmit = hasChanges && (isEdit || !idError) && customerId.trim() && customerName.trim() && customerWebsite.trim() && !submitting
+  const canSubmit = hasChanges && (isEdit || !idError) && (isEdit || !websiteError) && customerId.trim() && customerName.trim() && customerWebsite.trim() && !submitting
 
   return createPortal(
     <div
@@ -327,14 +354,20 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Website</span>
               <span className="text-slate-300">·</span>
-              <span className="text-xs text-slate-400">Fill mandatory field</span>
+              {websiteError
+                ? <span className="text-xs text-rose-600">{websiteError}</span>
+                : <span className="text-xs text-slate-400">Fill mandatory field</span>
+              }
             </div>
             <input
               type="text"
               value={customerWebsite}
               onChange={e => setCustomerWebsite(e.target.value)}
               placeholder="e.g. logicera.com"
-              className="w-full h-9 px-3 rounded-md border border-slate-200 text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none"
+              className={[
+                'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
+                websiteError ? 'border-rose-300' : 'border-slate-200',
+              ].join(' ')}
             />
           </div>
 
