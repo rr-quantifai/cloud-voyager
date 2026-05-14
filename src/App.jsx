@@ -255,7 +255,7 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
     customerWebsite.trim() !== (customer.website ?? '') ||
     JSON.stringify([...selectedProducts].sort()) !== JSON.stringify([...(customer.ownedProducts ?? [])].sort())
   )
-  const canSubmit = hasChanges && (isEdit || !idError) && (isEdit || !websiteError) && customerId.trim() && customerName.trim() && customerWebsite.trim() && !submitting
+  const canSubmit = hasChanges && (isEdit || !idError) && !websiteError && customerId.trim() && customerName.trim() && customerWebsite.trim() && !submitting
 
   return createPortal(
     <div
