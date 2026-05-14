@@ -207,7 +207,7 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
   }
 
   async function handleSubmit() {
-    if ((!isEdit && idError) || !customerId.trim() || !customerName.trim() || submitting) return
+    if ((!isEdit && idError) || !customerId.trim() || !customerName.trim() || !customerWebsite.trim() || submitting) return
     setSubmitting(true)
     try {
       if (isEdit) {
@@ -569,6 +569,13 @@ function CustomerListPage() {
       header: 'Name',
       cell: info => (
         <span className="text-sm font-medium text-slate-700">{info.getValue()}</span>
+      ),
+    },
+    {
+      accessorKey: 'website',
+      header: 'Website',
+      cell: info => (
+        <span className="text-sm text-slate-500 font-mono">{info.getValue() || '—'}</span>
       ),
     },
     {
