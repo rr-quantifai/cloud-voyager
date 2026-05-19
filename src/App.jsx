@@ -354,21 +354,27 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Website</span>
               <span className="text-slate-300">·</span>
-              {websiteError
+              {!isEdit && websiteError
                 ? <span className="text-xs text-rose-600">{websiteError}</span>
-                : <span className="text-xs text-slate-400">Fill mandatory field</span>
+                : <span className="text-xs text-slate-400">{isEdit ? 'Frozen field' : 'Fill mandatory field'}</span>
               }
             </div>
-            <input
-              type="text"
-              value={customerWebsite}
-              onChange={e => setCustomerWebsite(e.target.value)}
-              placeholder="e.g. logicera.com"
-              className={[
-                'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
-                websiteError ? 'border-rose-300' : 'border-slate-200',
-              ].join(' ')}
-            />
+            {isEdit ? (
+              <div className="w-full h-9 px-3 rounded-md border border-slate-200 bg-slate-100 text-sm text-slate-400 font-mono flex items-center">
+                {customer.website}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={customerWebsite}
+                onChange={e => setCustomerWebsite(e.target.value)}
+                placeholder="e.g. logicera.com"
+                className={[
+                  'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
+                  websiteError ? 'border-rose-300' : 'border-slate-200',
+                ].join(' ')}
+              />
+            )}
           </div>
 
           {/* Products Owned */}
