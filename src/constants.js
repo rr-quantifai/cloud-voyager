@@ -77,7 +77,7 @@ export function computeCategoryStages(ownedProducts) {
 
 // ─── UI Constants ─────────────────────────────────────────────────────────────
 
-export const BUTTON_H = 'h-9 flex items-center justify-center'
+export const BUTTON_H = 'h-9'
 
 // ─── IndexedDB Store Names ────────────────────────────────────────────────────
 
