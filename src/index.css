@@ -1,11 +1,4 @@
 @tailwind base;
-@layer base {
-  button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
 @tailwind components;
 @tailwind utilities;
 
