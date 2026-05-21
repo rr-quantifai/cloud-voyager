@@ -619,7 +619,7 @@ const NOISE_PATTERNS = [
  * Pass 1: exact lookup. Pass 2: substring match for aliases > 7 chars.
  * Returns null if no alias matches.
  */
-function resolveViAliasMap(signal) {
+function resolveViaAliasMap(signal) {
   if (typeof signal !== 'string') return null;
   const lower = signal.toLowerCase().trim();
   if (MS_PRODUCT_ALIASES[lower]) return MS_PRODUCT_ALIASES[lower];
@@ -648,7 +648,7 @@ function postProcessTechStack(techStack, categorySignals) {
 
     if (MS_PRODUCT_SET.has(item))                        { cleaned.push(item); continue; }
 
-    const resolved = resolveViAliasMap(item);
+    const resolved = resolveViaAliasMap(item);
     if (resolved)                                         { if (!cleaned.includes(resolved)) cleaned.push(resolved); continue; }
 
     if (MS_KEYWORDS.some(kw => new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(item))) { signals.push(`Microsoft technology signal — specific product unresolved: ${item}`); continue; }
@@ -798,7 +798,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model, temperature 
 
   if (!res.ok) {
     const errMarkers = { 401: 'ANTHROPIC_AUTH_ERROR', 402: 'ANTHROPIC_PAYMENT_ERROR', 429: 'ANTHROPIC_RATE_LIMIT_ERROR', 500: 'ANTHROPIC_SERVER_ERROR' };
-    throw new Error(errMarkers[res.status] || `ANTHROPIC_HTTP_${res.status}`);
+    throw new Error(errMarkers[res.status] || 'ANTHROPIC_SERVER_ERROR');
   }
 
   const data = await res.json();

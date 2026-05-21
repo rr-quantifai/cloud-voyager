@@ -139,7 +139,7 @@ function AnalysisStrip({ state, onClear }) {
           </span>
         ) : (
           <span className="text-slate-300">
-            {state.customerId}: Analysis in progress — {phaseLabel[state.phase]}<span>{dots}</span>
+            {state.customerId}: Analysis in progress — {phaseLabel[state.phase] ?? state.phase}<span>{dots}</span>
           </span>
         )}
       </span>
@@ -234,7 +234,7 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
   }
 
   async function handleSubmit() {
-    if ((!isEdit && idError) || !customerId.trim() || !customerName.trim() || !customerWebsite.trim() || submitting) return
+    if ((!isEdit && idError) || websiteError || !customerId.trim() || !customerName.trim() || !customerWebsite.trim() || submitting) return
     setSubmitting(true)
     try {
       if (isEdit) {
@@ -518,10 +518,6 @@ function CustomerListPage() {
   )
 
   function cycleDateSort(col) {
-    if (col === 'createdAt') {
-      if (dateSortCol !== 'createdAt') { setDateSortCol('createdAt'); setDateSortDir('asc'); return }
-      setDateSortCol(null); setDateSortDir('desc'); return
-    }
     if (dateSortCol !== col) { setDateSortCol(col); setDateSortDir('desc'); return }
     if (dateSortDir === 'desc') { setDateSortDir('asc'); return }
     setDateSortCol(null); setDateSortDir('desc')
@@ -695,7 +691,7 @@ function CustomerListPage() {
         )
       },
     },
-  ], [navigate, handleAnalyze, isAnalyzing, keysSaved])
+  ], [navigate, handleAnalyze, isAnalyzing, keysSaved, analysisState])
 
   const table = useReactTable({
     data:            sortedFiltered,
@@ -883,6 +879,8 @@ const MATURITY_CLS = {
   Low:      'bg-rose-100 text-rose-700',
 }
 
+const LEVEL_ORDER = ['Very High', 'High', 'Moderate', 'Low']
+
 function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
   const techStack = (profile.currentTechStack || []).filter(p => typeof p === 'string')
   const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
@@ -968,8 +966,6 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
 }
 
 function PropensityPipeline({ scores }) {
-  const LEVEL_ORDER = ['Very High', 'High', 'Moderate', 'Low']
-
   const grouped = useMemo(() => {
     const map = { 'Very High': [], High: [], Moderate: [], Low: [] }
     for (const ps of scores) { if (map[ps.label]) map[ps.label].push(ps) }
@@ -1032,13 +1028,18 @@ function CustomerDetailPage() {
         return
       }
       if (!c.analysisComplete) {
-        setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — profile not found, analyze and try again` })
+        setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — profile not found, try again` })
         navigate('/')
         return
       }
       const a = await getLatestAnalysis(id)
+      if (!a) {
+        setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — profile not found, try again` })
+        navigate('/')
+        return
+      }
       setCustomer(c)
-      setAnalysis(a || null)
+      setAnalysis(a)
     } catch {
       setAnalysisState({ customerId: id, phase: 'error', errorMessage: `${id}: Something went wrong — could not load customer data, try again` })
       navigate('/')
