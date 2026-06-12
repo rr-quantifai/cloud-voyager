@@ -532,7 +532,7 @@ function labelFromScore(score) {
 }
 
 function resolveModelId(model) {
-  if (model === 'opus')  return 'claude-opus-4-8';
+  if (model === 'fable')  return 'claude-fable-5';
   if (model === 'haiku') return 'claude-haiku-4-5-20251001';
   return 'claude-sonnet-4-6';
 }
@@ -789,7 +789,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model, temperature 
     },
     body: JSON.stringify({
       model:       resolveModelId(model),
-      max_tokens:  16000,
+      max_tokens:  ({ fable: 16000, sonnet: 6000, haiku: 4000 })[model] ?? 6000,
       temperature,
       system:      systemPrompt,
       messages:    [{ role: 'user', content: userContent }],
@@ -917,8 +917,6 @@ UNOWNED PRODUCTS (use exact names): ${unownedStr}
 
 itMaturityLevel must be exactly one of: High, Moderate, Low.
 
-dataConfidence must be exactly one of: High, Medium, Low.
-
 currentTechStack must be a flat array of plain strings — product names only, no objects, no metadata, no bucket labels.
 
 categorySignals must be a flat array of plain strings — signal descriptions only, no objects. Every entry must describe a customer technology signal — a confirmed vendor, product category, or capability. Do not add self-referential notes about classification decisions or bucket assignments — categorySignals is for customer intelligence, not internal reasoning.
@@ -930,8 +928,7 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
 {
   "currentTechStack": ["product name", "product name"],
   "categorySignals": ["signal description"],
-  "itMaturityLevel": "",
-  "dataConfidence": ""
+  "itMaturityLevel": ""
 }
 
 COMPANY NAME: ${companyName}`;
@@ -1005,7 +1002,7 @@ Not every angle applies to every product. Include only what is evidenced and rel
 Similar rationale across companies in the same industry is acceptable when driven by a shared regulation or sector-wide condition — specificity comes from naming the regulation, the company's current compliance posture, and the specific control gap.
 
 SPARSE CONTEXT RULE:
-If context is thin, score conservatively and set dataConfidence to Low. A low-confidence honest score is more valuable than a high-confidence fabricated one.
+If context is thin, score conservatively. An honest conservative score is more valuable than a confident fabricated one.
 
 SUMMARY RULES:
 Write a single cohesive paragraph that serves as the partner's complete pre-meeting intelligence brief. This is the first thing the partner reads — it must orient them immediately and equip them for a credible opening conversation.
@@ -1036,8 +1033,6 @@ itMaturityLevel must be exactly one of: High, Moderate, Low.
 
 implementationReadiness must be exactly one of: High, Moderate, Low.
 
-dataConfidence must be exactly one of: High, Medium, Low.
-
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
@@ -1046,7 +1041,7 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
     "hqLocation": "", "operatingRegions": [],
     "itMaturityLevel": "",
     "keyBusinessChallenges": [], "implementationReadiness": "",
-    "summary": "", "dataConfidence": ""
+    "summary": ""
   },
   "productScores": [
     { "product": "", "category": "", "score": 0, "label": "", "rationale": "" }
@@ -1131,7 +1126,7 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   const { system: sys3, user: user3 } = buildProfilePrompt(
     companyName, disambiguation, searchContext, ownedProducts, verifiedTechStack, categorySignals,
   );
-  const raw3 = await claudeCall(sys3, user3, anthropicKey, 'opus');
+  const raw3 = await claudeCall(sys3, user3, anthropicKey, 'fable');
 
   const call3 = extractJSON(raw3);
   if (!call3 || !call3.companyProfile || !Array.isArray(call3.productScores)) {
@@ -1144,16 +1139,14 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   }));
 
   // Freeze tech stack from Stage 1 — Stage 2 never modifies it
-  const validConfidence = new Set(['High', 'Medium', 'Low']);
   const profileData = stripPeriods(call3.companyProfile);
-  if (!validConfidence.has(profileData.dataConfidence)) profileData.dataConfidence = 'Medium';
   const frozenProfile = { ...profileData, currentTechStack: verifiedTechStack };
 
   // Step 3 — Return result for Blobs write
   return {
     companyProfile: frozenProfile,
     productScores:  stripPeriods(productScores),
-    modelVersion:   'opus',
+    modelVersion:   'fable',
   };
 }
 

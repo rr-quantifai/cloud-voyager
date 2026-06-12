@@ -867,18 +867,6 @@ const LABEL_CLS = {
   Low:         'bg-rose-100 text-rose-700',
 }
 
-const CONFIDENCE_CLS = {
-  High:   'bg-emerald-100 text-emerald-700',
-  Medium: 'bg-amber-100 text-amber-700',
-  Low:    'bg-rose-100 text-rose-700',
-}
-
-const MATURITY_CLS = {
-  High:     'bg-emerald-100 text-emerald-700',
-  Moderate: 'bg-amber-100 text-amber-700',
-  Low:      'bg-rose-100 text-rose-700',
-}
-
 const LEVEL_ORDER = ['Very High', 'High', 'Moderate', 'Low']
 
 function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
@@ -890,31 +878,22 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
   return (
     <div className="space-y-6">
 
-      {/* Data Confidence — Stage 2 only */}
+      {/* Company Profile — Stage 2 only */}
       {stage === 2 && (
         <div className="bg-white border border-slate-200 rounded">
           <div className="flex items-center gap-3 px-4 py-4">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Data Confidence</span>
-            <span className="text-slate-300">·</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${CONFIDENCE_CLS[profile.dataConfidence] || 'bg-slate-100 text-slate-500'}`}>{CONFIDENCE_CLS[profile.dataConfidence] ? profile.dataConfidence : '—'}</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Company Profile</span>
           </div>
           <div className="px-4 pt-4 pb-4 border-t border-slate-200">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-medium text-slate-600 shrink-0">Company Profile</span>
-              <span className="text-slate-300">·</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${MATURITY_CLS[profile.implementationReadiness] || 'bg-slate-100 text-slate-500'}`}>Implementation Readiness</span>
-            </div>
             <p className="text-sm text-slate-600 leading-relaxed text-justify">{profile.summary || '—'}</p>
           </div>
         </div>
       )}
 
-      {/* IT Maturity */}
+      {/* Current Tech Stack */}
       <div className="bg-white border border-slate-200 rounded">
         <div className="flex items-center gap-3 px-4 py-4">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">IT maturity</span>
-          <span className="text-slate-300">·</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${MATURITY_CLS[profile.itMaturityLevel] || 'bg-slate-100 text-slate-500'}`}>{profile.itMaturityLevel}</span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Current Tech Stack</span>
           <div className="flex-1" />
           <button
             onClick={() => onUpdateProducts(msFound)}
@@ -1195,8 +1174,6 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
         console.log('Verification context (3 searches):', verificationContext)
         console.log('Verified tech stack:', companyProfile?.currentTechStack)
         console.log('Category signals:', companyProfile?.categorySignals)
-        console.log('IT maturity:', companyProfile?.itMaturityLevel)
-        console.log('Data confidence:', companyProfile?.dataConfidence)
         console.groupEnd()
       }
 
