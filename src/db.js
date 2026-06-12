@@ -163,17 +163,17 @@ export async function deleteAnalysesForCustomer(customerId) {
 
 /**
  * Returns the stored API key settings, or sensible defaults if not set.
- * @returns {Promise<{ anthropic: string, tavily: string, netlify: string, model: 'sonnet'|'opus' }>}
+ * @returns {Promise<{ anthropic: string, tavily: string, netlify: string }>}
  */
 export async function getSettings() {
   const db = await getDB()
   const row = await db.get(STORES.SETTINGS, SETTINGS_KEY)
-  return row?.value ?? { anthropic: '', tavily: '', netlify: '', model: 'sonnet' }
+  return row?.value ?? { anthropic: '', tavily: '', netlify: '' }
 }
 
 /**
  * Persists API key settings.
- * @param {{ anthropic: string, tavily: string, model: 'sonnet'|'opus' }} value
+ * @param {{ anthropic: string, tavily: string, netlify: string }} value
  * @returns {Promise<void>}
  */
 export async function saveSettings(value) {
