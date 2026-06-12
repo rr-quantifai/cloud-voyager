@@ -587,7 +587,7 @@ async function disambiguate(companyName, companyWebsite, apiKey) {
 Company name: ${companyName}
 Website: ${companyWebsite}`;
 
-  const raw = await claudeCall(system, user, apiKey, 'haiku', 0);
+  const { text: raw } = await claudeCall(system, user, apiKey, 'haiku', 0);
   const parsed = extractJSON(raw);
   return {
     country:    typeof parsed?.country    === 'string' ? parsed.country    : 'unknown',
@@ -789,7 +789,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model, temperature 
     },
     body: JSON.stringify({
       model:       resolveModelId(model),
-      max_tokens:  ({ fable: 16000, sonnet: 6000, haiku: 4000 })[model] ?? 6000,
+      max_tokens:  ({ fable: 32000, sonnet: 6000, haiku: 4000 })[model] ?? 6000,
       temperature,
       system:      systemPrompt,
       messages:    [{ role: 'user', content: userContent }],
@@ -803,7 +803,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model, temperature 
 
   const data = await res.json();
   const text = data.content?.find(b => b.type === 'text')?.text ?? '';
-  return text;
+  return { text, stopReason: data.stop_reason ?? 'unknown' };
 }
 
 // ── Prompt builders ───────────────────────────────────────────────────────────
@@ -1075,7 +1075,7 @@ async function runStage1Pipeline({ companyName, companyWebsite, ownedProducts, a
 
   // Step 2 — Claude Call 1: raw extraction (Haiku — no reasoning required)
   const { system: sys1, user: user1 } = buildRawExtractionPrompt(context);
-  const raw1 = await claudeCall(sys1, user1, anthropicKey, 'haiku', 0);
+  const { text: raw1 } = await claudeCall(sys1, user1, anthropicKey, 'haiku', 0);
 
   let rawList;
   try {
@@ -1092,11 +1092,12 @@ async function runStage1Pipeline({ companyName, companyWebsite, ownedProducts, a
   const { system: sys2, user: user2 } = buildVerifiedTechStackPrompt(
     companyName, disambiguation, context, verificationContext, rawList, ownedProducts,
   );
-  const raw2 = await claudeCall(sys2, user2, anthropicKey, 'sonnet', 0);
+  const { text: raw2, stopReason: stop2 } = await claudeCall(sys2, user2, anthropicKey, 'sonnet', 0);
 
   const call2 = extractJSON(raw2);
   if (!call2 || typeof call2 !== 'object') {
-    throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
+    const tail2 = raw2.slice(-200).replace(/\s+/g, ' ');
+    throw new Error(`Something went wrong — stage 1 JSON parse failed (stop_reason: ${stop2}; tail: …${tail2})`);
   }
 
   const stripped = stripPeriods(call2);
@@ -1126,11 +1127,16 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   const { system: sys3, user: user3 } = buildProfilePrompt(
     companyName, disambiguation, searchContext, ownedProducts, verifiedTechStack, categorySignals,
   );
-  const raw3 = await claudeCall(sys3, user3, anthropicKey, 'fable');
+  const { text: raw3, stopReason: stop3 } = await claudeCall(sys3, user3, anthropicKey, 'fable');
+
+  if (stop3 === 'refusal') {
+    throw new Error('Something went wrong — model declined the request (stop_reason: refusal), try again');
+  }
 
   const call3 = extractJSON(raw3);
   if (!call3 || !call3.companyProfile || !Array.isArray(call3.productScores)) {
-    throw new Error('Something went wrong — Claude returned unparseable JSON, check Anthropic API details');
+    const tail3 = raw3.slice(-200).replace(/\s+/g, ' ');
+    throw new Error(`Something went wrong — stage 2 JSON parse failed (stop_reason: ${stop3}; tail: …${tail3})`);
   }
 
   const productScores = call3.productScores.map(ps => ({
