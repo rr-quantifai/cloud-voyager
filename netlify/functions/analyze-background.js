@@ -532,7 +532,7 @@ function labelFromScore(score) {
 }
 
 function resolveModelId(model) {
-  if (model === 'fable')  return 'claude-fable-5';
+  if (model === 'opus')  return 'claude-opus-4-8';
   if (model === 'haiku') return 'claude-haiku-4-5-20251001';
   return 'claude-sonnet-4-6';
 }
@@ -789,7 +789,7 @@ async function claudeCall(systemPrompt, userContent, apiKey, model, temperature 
     },
     body: JSON.stringify({
       model:       resolveModelId(model),
-      max_tokens:  ({ fable: 32000, sonnet: 6000, haiku: 4000 })[model] ?? 6000,
+      max_tokens:  ({ opus: 35000, sonnet: 10000, haiku: 5000 })[model] ?? 10000,
       temperature,
       system:      systemPrompt,
       messages:    [{ role: 'user', content: userContent }],
@@ -905,6 +905,8 @@ The signal confirms a vendor or technology category is present but provides insu
 Format: "[Vendor/category] presence confirmed — specific product unknown"
 Examples: "Microsoft cloud products" → "Microsoft cloud presence confirmed — specific product unknown"; "SAP across the business" → "SAP enterprise software confirmed — specific product unknown"; "uses AI tools" → "AI tooling presence confirmed — specific product unknown"
 
+A bare vendor name is never a valid currentTechStack entry, for Microsoft and non-Microsoft vendors alike. "Palo Alto Networks", "IBM", or "Cisco" with no specific commercial product confirmed (Bucket A) or defensibly inferable from a single unambiguous workload (Bucket B) must be routed to categorySignals — e.g. "Palo Alto Networks security tooling confirmed — specific product unknown".
+
 COMMERCIAL PRODUCT FILTER — apply before any bucket:
 Exclude entirely (no bucket, no categorySignals): programming languages, scripting tools, frameworks, protocols, open-source libraries, and internal or bespoke applications with no external commercial vendor.
 
@@ -965,6 +967,8 @@ THREE-STEP REASONING:
 Step 1 — Build the business picture
 Synthesise industry position, growth stage, financial health, leadership priorities, incumbent vendors, regulatory environment, and regional context. Hiring patterns, news, and competitor displacement data are the most reliable indicators of IT maturity. Do not score anything yet.
 
+If two signals conflict — such as different employee counts, seat counts, or entity scopes — do not arithmetically combine them into derived figures (no subtracting one from the other to produce a gap number). Treat the discrepancy itself as a discovery point: name both figures, note they may describe different entities within the group, and frame validation as a first-meeting action.
+
 If company-specific signals are sparse, use these fallbacks in order:
 
 Regulatory air cover: identify the top 3 compliance mandates for this company's industry and country (e.g. SAMA Cyber Framework for Saudi financial institutions, CBUAE requirements for UAE banks) and treat them as baseline signals. Map Microsoft products as the de facto solution to each mandate. Label these as regulatory inference.
@@ -997,7 +1001,7 @@ The paragraph must weave together all of the following angles that are relevant 
 - CFO case: what does this cost less than, replace, or avoid — one concrete statement anchored in a published benchmark or a directional argument if no verified figure exists. Never fabricate a number. If the company context contains a specific price or cost figure for a Microsoft product, use that figure exactly — do not substitute a different number from training memory.
 - CISO case: if applicable, what specific regulatory requirement does this satisfy and what specific control does it provide
 
-Not every angle applies to every product. Include only what is evidenced and relevant. Omit angles that would require fabrication or padding. If a strong upward signal exists but a moderating factor reduced the score, name that moderating factor explicitly in natural language — do not reference numeric scores or adjustments. Do not include base scores, numeric adjustments, or scoring arithmetic in the rationale paragraph.
+Not every angle applies to every product. Include only what is evidenced and relevant. Omit angles that would require fabrication or padding. If a strong upward signal exists but a moderating factor reduced the score, name that moderating factor explicitly in natural language — do not reference numeric scores or adjustments. Do not include base scores, numeric adjustments, or scoring arithmetic in the rationale paragraph. Never use the words "score", "scoring", "tier", "label", or "adjustment" anywhere in any rationale paragraph — express moderation purely as sales judgment (e.g. "the realistic ceiling here is set by..." rather than "the score is held below the top tier because...").
 
 Similar rationale across companies in the same industry is acceptable when driven by a shared regulation or sector-wide condition — specificity comes from naming the regulation, the company's current compliance posture, and the specific control gap.
 
@@ -1127,7 +1131,7 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   const { system: sys3, user: user3 } = buildProfilePrompt(
     companyName, disambiguation, searchContext, ownedProducts, verifiedTechStack, categorySignals,
   );
-  const { text: raw3, stopReason: stop3 } = await claudeCall(sys3, user3, anthropicKey, 'fable');
+  const { text: raw3, stopReason: stop3 } = await claudeCall(sys3, user3, anthropicKey, 'opus');
 
   if (stop3 === 'refusal') {
     throw new Error('Something went wrong — model declined the request (stop_reason: refusal), try again');
@@ -1152,7 +1156,7 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
   return {
     companyProfile: frozenProfile,
     productScores:  stripPeriods(productScores),
-    modelVersion:   'fable',
+    modelVersion:   'opus',
   };
 }
 
