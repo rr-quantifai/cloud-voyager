@@ -759,6 +759,7 @@ async function gatherVerificationContext(companyName, companyWebsite, disambigua
     { label: 'Technology Product Verification — Batch 1',  query: msQuery,                                                              fbTok: 800 },
     { label: 'Technology Product Verification — Batch 2',  query: nonMsQuery,                                                           fbTok: 800 },
     { label: 'Cloud Infrastructure and Technology Stack',  query: `${pfx} cloud infrastructure technology stack architecture`,          fbTok: 800 },
+    { label: 'Technology Leadership and IT Staff Profiles', query: `${pfx} information technology LinkedIn ERP enterprise software`,    fbTok: 800 },
   ];
 
   const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey, false)));
@@ -874,6 +875,8 @@ The signal names a vendor or service but also describes a specific workload or f
 If Round 2 verification explicitly contradicts or casts doubt on a Round 1 signal, the product must not appear in currentTechStack — route to categorySignals instead regardless of how strong the Round 1 signal was.
 
 If a product appears only in Round 2 context with no corresponding signal in Round 1, treat the Round 2 source with heightened scrutiny — inspect the [Source: url | Score: x.xx] prefix on each Round 2 snippet. If the source is a clearly identifiable primary document (job posting, vendor announcement, official company publication) with an explicit product mention, the product may be placed in currentTechStack and also noted in categorySignals as unconfirmed in Round 1. If no source prefix is visible, the source is a generic aggregator or directory, or the content does not explicitly name the product, route to categorySignals only.
+
+If a Round 1 signal describes a product using hedging or generalising language — such as "commonly [product]", "a leading [category] such as [product]", "typically [product]", "often [product]", or "for example [product]" — this is a sector-level inference by the search source, not a confirmed fact about this specific company. Such a signal cannot support a Bucket A or Bucket B classification. Route to categorySignals only.
 
 If a named product variant exists that does not match any exact catalogue SKU name — such as a product marketed under a different tier, edition, or audience segment — do not silently upgrade or downgrade to the nearest catalogue SKU. Route to categorySignals with the exact variant name noted. Exception: for catalogue SKUs that explicitly enumerate multiple tiers in their name (such as "Microsoft 365 E3/E5"), any confirmed mention of a covered tier (E3 or E5) constitutes a Bucket A confirmation — do not treat tier-level confirmation as a variant mismatch.
 
