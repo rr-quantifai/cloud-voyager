@@ -649,7 +649,7 @@ function postProcessTechStack(techStack, categorySignals) {
     if (MS_PRODUCT_SET.has(item))                        { cleaned.push(item); continue; }
 
     const resolved = resolveViaAliasMap(item);
-    if (resolved)                                         { if (!cleaned.includes(resolved)) cleaned.push(resolved); continue; }
+    if (resolved)                                         { cleaned.push(resolved); continue; }
 
     if (MS_KEYWORDS.some(kw => new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(item))) { signals.push(`Microsoft technology signal — specific product unresolved: ${item}`); continue; }
 
@@ -762,17 +762,17 @@ async function gatherVerificationContext(companyName, companyWebsite, disambigua
   const geo    = disambiguation.country !== 'unknown' ? ` ${disambiguation.country}` : '';
   const pfx    = `${companyName} ${domain}${geo}`;
 
-  const msQuery = firstBatch.length > 0
+  const batch1Query = firstBatch.length > 0
     ? `${pfx} ${firstBatch} deployment licensing`
     : `${pfx} Microsoft software products licensing deployment`;
 
-  const nonMsQuery = secondBatch.length > 0
+  const batch2Query = secondBatch.length > 0
     ? `${pfx} ${secondBatch} enterprise deployment`
     : `${pfx} enterprise systems ERP CRM database applications`;
 
   const searches = [
-    { label: 'Technology Product Verification — Batch 1',  query: msQuery,                                                              fbTok: 800 },
-    { label: 'Technology Product Verification — Batch 2',  query: nonMsQuery,                                                           fbTok: 800 },
+    { label: 'Technology Product Verification — Batch 1',  query: batch1Query,                                                          fbTok: 800 },
+    { label: 'Technology Product Verification — Batch 2',  query: batch2Query,                                                          fbTok: 800 },
     { label: 'Cloud Infrastructure and Technology Stack',  query: `${pfx} cloud infrastructure technology stack architecture`,          fbTok: 800 },
     { label: 'Technology Leadership and IT Staff Profiles', query: `${pfx} information technology LinkedIn ERP enterprise software`,    fbTok: 800 },
   ];
@@ -897,7 +897,7 @@ If a source confirms an older or legacy version of a product, record that produc
 
 If a named product variant exists that does not match any exact catalogue SKU name — such as a product marketed under a different tier, edition, or audience segment — do not silently upgrade or downgrade to the nearest catalogue SKU. Route to categorySignals with the exact variant name noted. Exception: for catalogue SKUs that explicitly enumerate multiple tiers in their name (such as "Microsoft 365 E3/E5"), any confirmed mention of a covered tier (E3 or E5) constitutes a Bucket A confirmation — do not treat tier-level confirmation as a variant mismatch.
 
-Microsoft workload inference — map to exact catalogue name:
+Microsoft workload inference — map to exact catalogue name. Apply ONLY when the signal contains an explicit Microsoft, Azure, or Dynamics reference alongside the workload keyword. A bare workload term (e.g. "ERP", "CRM", "contact centre") with no Microsoft vendor signal is Bucket C — route to categorySignals, never map to a catalogue SKU:
   Email, messaging, Exchange, Exchange Online → Microsoft 365 E3/E5
   Cloud compute, virtual servers, VMs, IaaS → Azure Virtual Machines
   Cloud storage, blob storage, data lake, object storage → Azure Storage and Data Lake
@@ -1107,13 +1107,8 @@ async function runStage1Pipeline({ companyName, companyWebsite, ownedProducts, a
   const { system: sys1, user: user1 } = buildRawExtractionPrompt(context);
   const { text: raw1 } = await claudeCall(sys1, user1, anthropicKey, 'haiku', 0);
 
-  let rawList;
-  try {
-    const parsed = extractJSON(raw1);
-    rawList = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    rawList = [];
-  }
+  const parsed1 = extractJSON(raw1);
+  const rawList = Array.isArray(parsed1) ? parsed1 : [];
 
   // Step 3 — Run 3 targeted verification searches (queries built from rawList)
   const verificationContext = await gatherVerificationContext(companyName, companyWebsite, disambiguation, rawList, tavilyKey);
