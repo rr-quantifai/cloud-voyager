@@ -669,12 +669,12 @@ function postProcessTechStack(techStack, categorySignals) {
 const TAVILY_FALLBACK =
   '[No company-specific signals found — apply sector-level inference as per Stage 1 fallback instructions]';
 
-async function tavilySearch(query, apiKey) {
+async function tavilySearch(query, apiKey, includeAnswer = 'advanced') {
   try {
     const res = await fetch('https://api.tavily.com/search', {
       method:  'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ query, search_depth: 'basic', include_answer: 'advanced', max_results: 10 }),
+      body:    JSON.stringify({ query, search_depth: 'basic', include_answer: includeAnswer, max_results: 10 }),
     });
     if (res.status === 401 || res.status === 403) throw new Error('TAVILY_AUTH_ERROR');
     if (!res.ok) throw new Error('TAVILY_ERROR');
@@ -761,15 +761,19 @@ async function gatherVerificationContext(companyName, companyWebsite, disambigua
     { label: 'Cloud Infrastructure and Technology Stack',  query: `${pfx} cloud infrastructure technology stack architecture`,          fbTok: 800 },
   ];
 
-  const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey)));
+  const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey, false)));
 
   const blocks = raw.map((res, i) => {
     const { label, fbTok } = searches[i];
     const header = `[VERIFICATION: ${label}]`;
-    if (res?.answer?.trim()) return `${header}\n${res.answer.trim()}`;
     if (res?.results) {
-      const candidate = res.results.find(r => r.score >= 0.3 && r.content);
-      if (candidate) return `${header}\n${truncateToTokens(candidate.content, fbTok)}`;
+      const candidates = res.results.filter(r => r.score >= 0.3 && r.content).slice(0, 2);
+      if (candidates.length > 0) {
+        const snippets = candidates.map(r =>
+          `[Source: ${r.url} | Score: ${r.score.toFixed(2)}]\n${truncateToTokens(r.content, Math.floor(fbTok / candidates.length))}`
+        ).join('\n\n');
+        return `${header}\n${snippets}`;
+      }
     }
     return `${header}\n${TAVILY_FALLBACK}`;
   });
@@ -868,6 +872,8 @@ BUCKET B — Workload context exists, product is defensibly inferable
 The signal names a vendor or service but also describes a specific workload or function. Map to the single most defensible product. If two products could equally serve this workload, treat as Bucket C instead.
 
 If Round 2 verification explicitly contradicts or casts doubt on a Round 1 signal, the product must not appear in currentTechStack — route to categorySignals instead regardless of how strong the Round 1 signal was.
+
+If a product appears only in Round 2 context with no corresponding signal in Round 1, treat the Round 2 source with heightened scrutiny — inspect the [Source: url | Score: x.xx] prefix on each Round 2 snippet. If the source is a clearly identifiable primary document (job posting, vendor announcement, official company publication) with an explicit product mention, the product may be placed in currentTechStack and also noted in categorySignals as unconfirmed in Round 1. If no source prefix is visible, the source is a generic aggregator or directory, or the content does not explicitly name the product, route to categorySignals only.
 
 If a named product variant exists that does not match any exact catalogue SKU name — such as a product marketed under a different tier, edition, or audience segment — do not silently upgrade or downgrade to the nearest catalogue SKU. Route to categorySignals with the exact variant name noted. Exception: for catalogue SKUs that explicitly enumerate multiple tiers in their name (such as "Microsoft 365 E3/E5"), any confirmed mention of a covered tier (E3 or E5) constitutes a Bucket A confirmation — do not treat tier-level confirmation as a variant mismatch.
 
