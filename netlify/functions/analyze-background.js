@@ -704,7 +704,10 @@ async function gatherContext(companyName, companyWebsite, disambiguation, tavily
     { label: 'Contact Centre and Customer Operations',       query: `${pfx} contact centre customer service operations platform`,                 fbTok: 800  },
   ];
 
-  const raw = await Promise.all(searches.map(s => tavilySearch(s.query, tavilyKey)));
+  const HIGH_RISK = new Set([3, 6]);
+  const raw = await Promise.all(
+    searches.map((s, i) => tavilySearch(s.query, tavilyKey, HIGH_RISK.has(i) ? false : 'advanced'))
+  );
 
   const urlOwner = new Map();
   raw.forEach((res, sIdx) => {
@@ -719,6 +722,18 @@ async function gatherContext(companyName, companyWebsite, disambiguation, tavily
   const blocks = raw.map((res, i) => {
     const { label, fbTok } = searches[i];
     const header = `[SIGNAL: ${label}]`;
+    if (HIGH_RISK.has(i)) {
+      if (res?.results) {
+        const candidates = res.results.filter(r => r.score >= 0.3 && r.content).slice(0, 2);
+        if (candidates.length > 0) {
+          const snippets = candidates.map(r =>
+            `[Source: ${r.url} | Score: ${r.score.toFixed(2)}]\n${truncateToTokens(r.content, Math.floor(fbTok / candidates.length))}`
+          ).join('\n\n');
+          return `${header}\n${snippets}`;
+        }
+      }
+      return `${header}\n${TAVILY_FALLBACK}`;
+    }
     if (res?.answer?.trim()) return `${header}\n${res.answer.trim()}`;
     if (res?.results) {
       const candidate = res.results.find(
@@ -877,6 +892,8 @@ If Round 2 verification explicitly contradicts or casts doubt on a Round 1 signa
 If a product appears only in Round 2 context with no corresponding signal in Round 1, treat the Round 2 source with heightened scrutiny — inspect the [Source: url | Score: x.xx] prefix on each Round 2 snippet. If the source is a clearly identifiable primary document (job posting, vendor announcement, official company publication) with an explicit product mention, the product may be placed in currentTechStack and also noted in categorySignals as unconfirmed in Round 1. If no source prefix is visible, the source is a generic aggregator or directory, or the content does not explicitly name the product, route to categorySignals only.
 
 If a Round 1 signal describes a product using hedging or generalising language — such as "commonly [product]", "a leading [category] such as [product]", "typically [product]", "often [product]", or "for example [product]" — this is a sector-level inference by the search source, not a confirmed fact about this specific company. Such a signal cannot support a Bucket A or Bucket B classification. Route to categorySignals only.
+
+If a source confirms an older or legacy version of a product, record that product only. Do not infer version upgrades, cloud migrations, or successor products — speculative upgrade paths belong in categorySignals, not currentTechStack.
 
 If a named product variant exists that does not match any exact catalogue SKU name — such as a product marketed under a different tier, edition, or audience segment — do not silently upgrade or downgrade to the nearest catalogue SKU. Route to categorySignals with the exact variant name noted. Exception: for catalogue SKUs that explicitly enumerate multiple tiers in their name (such as "Microsoft 365 E3/E5"), any confirmed mention of a covered tier (E3 or E5) constitutes a Bucket A confirmation — do not treat tier-level confirmation as a variant mismatch.
 
