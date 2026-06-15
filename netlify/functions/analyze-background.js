@@ -867,7 +867,7 @@ Produce a verified technology stack for the company below based on two rounds of
 ROUND 1 — Initial search (9 sources):
 ${context}
 
-ROUND 2 — Verification search (3 targeted sources, queries constructed from extracted product signals):
+ROUND 2 — Verification search (4 targeted sources, queries constructed from extracted product signals):
 ${verificationContext}
 
 RAW EXTRACTED TECHNOLOGY LIST (from Round 1):
