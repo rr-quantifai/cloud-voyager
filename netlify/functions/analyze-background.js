@@ -1231,6 +1231,8 @@ exports.handler = async (event) => {
   }
 
   try {
+    await store.set(customerId, JSON.stringify({ status: 'running' }));
+
     const resolvedStage = stage === 2 ? 2 : 1;
 
     let result;

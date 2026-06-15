@@ -1159,7 +1159,7 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     let pollData
     try { pollData = await pollRes.json() } catch { continue }
 
-    if (pollData.status === 'pending') continue
+    if (pollData.status === 'pending' || pollData.status === 'running') continue
 
     if (pollData.status === 'error') {
       throw new Error(pollData.error || 'Something went wrong — try again')

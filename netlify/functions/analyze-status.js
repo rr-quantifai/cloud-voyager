@@ -45,8 +45,12 @@ exports.handler = async (event) => {
       };
     }
 
-    // Delete the blob now that the client has collected it
-    await store.delete(customerId);
+    // Only delete terminal blobs — 'running' must persist until the background function overwrites it
+    let parsedStatus;
+    try { parsedStatus = JSON.parse(raw)?.status; } catch { parsedStatus = null; }
+    if (parsedStatus === 'complete' || parsedStatus === 'error' || !parsedStatus) {
+      await store.delete(customerId);
+    }
 
     return {
       statusCode: 200,
