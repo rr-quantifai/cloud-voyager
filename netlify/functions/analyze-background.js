@@ -704,7 +704,7 @@ async function gatherContext(companyName, companyWebsite, disambiguation, tavily
     { label: 'Contact Centre and Customer Operations',       query: `${pfx} contact centre customer service operations platform`,                 fbTok: 800  },
   ];
 
-  const HIGH_RISK = new Set([3, 6]);
+  const HIGH_RISK = new Set([2, 3, 4, 5, 6, 8]);
   const raw = await Promise.all(
     searches.map((s, i) => tavilySearch(s.query, tavilyKey, HIGH_RISK.has(i) ? false : 'advanced'))
   );
