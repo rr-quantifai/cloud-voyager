@@ -65,6 +65,19 @@ function formatGST(iso) {
   return `${DD}-${MON}-${YY} ${HH}:${MM}:${SS}`
 }
 
+// ── normalizeWebsite ──────────────────────────────────────────────────────────
+
+function normalizeWebsite(raw) {
+  const trimmed = typeof raw === 'string' ? raw.trim() : ''
+  if (!trimmed) return ''
+  try {
+    const url = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return trimmed
+  }
+}
+
 // ── Dots ──────────────────────────────────────────────────────────────────────
 
 function Dots() {
@@ -314,13 +327,14 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
   }
 
   async function handleSubmit() {
-    if ((!isEdit && idError) || websiteError || !customerId.trim() || !customerName.trim() || !customerWebsite.trim() || submitting) return
+    const normalizedWebsite = normalizeWebsite(customerWebsite)
+    if ((!isEdit && idError) || websiteError || !customerId.trim() || !customerName.trim() || !normalizedWebsite || submitting) return
     setSubmitting(true)
     try {
       if (isEdit) {
-        await putCustomer({ ...customer, name: customerName.trim(), website: customerWebsite.trim(), ownedProducts: selectedProducts })
+        await putCustomer({ ...customer, name: customerName.trim(), website: normalizedWebsite, ownedProducts: selectedProducts })
       } else {
-        await createCustomer({ id: customerId.trim(), name: customerName.trim(), website: customerWebsite.trim(), ownedProducts: selectedProducts })
+        await createCustomer({ id: customerId.trim(), name: customerName.trim(), website: normalizedWebsite, ownedProducts: selectedProducts })
       }
       onSaved?.()
       onClose()
@@ -448,6 +462,7 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
                 type="text"
                 value={customerWebsite}
                 onChange={e => setCustomerWebsite(e.target.value)}
+                onPaste={e => { e.preventDefault(); setCustomerWebsite(normalizeWebsite(e.clipboardData.getData('text'))) }}
                 placeholder="e.g. logicera.com"
                 className={[
                   'w-full h-9 px-3 rounded-md border text-sm text-slate-700 placeholder-slate-400 bg-slate-50 focus:outline-none',
