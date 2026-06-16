@@ -993,13 +993,20 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
                             <div className="absolute left-0 w-full h-3" style={{bottom:'100%'}} />
                             <div className="absolute hidden group-hover:block z-10 font-mono text-xs bg-slate-800 text-slate-200 px-2.5 py-1.5 rounded whitespace-nowrap" style={{bottom:'calc(100% + 6px)',left:0}}>
   {(() => {
-    const src = evidence[p]
-    if (!src || !src.startsWith('http')) return <span className="pointer-events-none">{src}</span>
+    const ev  = evidence[p]
+    const src = typeof ev === 'object' && ev !== null ? (ev.url || '') : (typeof ev === 'string' ? ev : '')
+    const key = typeof ev === 'object' && ev !== null ? (ev.key || null) : null
+    if (!src || !src.startsWith('http')) return <span className="pointer-events-none">{key || src}</span>
     try {
       const domain = new URL(src).hostname.replace(/^www\./, '')
-      return <a href={src} target="_blank" rel="noreferrer" className="text-slate-200 hover:text-white underline">{domain}</a>
+      return (
+        <span className="flex flex-col gap-0.5">
+          {key && <span className="pointer-events-none">{key}</span>}
+          <a href={src} target="_blank" rel="noreferrer" className="text-slate-200 hover:text-white underline">{domain}</a>
+        </span>
+      )
     } catch {
-      return <span className="pointer-events-none">{src}</span>
+      return <span className="pointer-events-none">{key || src}</span>
     }
   })()}
 </div>

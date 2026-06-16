@@ -667,8 +667,9 @@ function postProcessTechStack(techStack, categorySignals, techStackEvidence = {}
   const gated = [];
   for (const item of cleaned) {
     if (!MS_PRODUCT_SET.has(item)) { gated.push(item); continue; }
-    const evidence = typeof techStackEvidence[item] === 'string' ? techStackEvidence[item] : '';
-    const hasUrl   = evidence.startsWith('http');
+    const ev     = techStackEvidence[item];
+    const url    = typeof ev === 'object' && ev !== null ? (ev.url || '') : (typeof ev === 'string' ? ev : '');
+    const hasUrl = url.startsWith('http');
     if (hasUrl) { gated.push(item); continue; }
     const inRaw = rawResolved.has(item) || rawList.some(
       r => typeof r === 'string' && r.toLowerCase() === item.toLowerCase()
@@ -972,7 +973,7 @@ itMaturityLevel must be exactly one of: High, Moderate, Low.
 
 currentTechStack must be a flat array of plain strings — product names only, no objects, no metadata, no bucket labels.
 
-techStackEvidence must be a flat JSON object with one key per product in currentTechStack. Each key is the exact product name as it appears in currentTechStack. Each value must be the exact source URL copied verbatim from the [Source: url | Score: x.xx] prefix of the snippet that confirmed this product. Do not paraphrase or reconstruct the URL. If the product was confirmed from a synthesised answer with no visible source URL, or if no specific URL can be identified, use "source unspecified".
+techStackEvidence must be a flat JSON object with one key per product in currentTechStack. Each key is the exact product name as it appears in currentTechStack. Each value must be an object with exactly two fields: "url" — the exact source URL copied verbatim from the [Source: url | Score: x.xx] prefix of the snippet that confirmed this product; and "key" — a verbatim phrase of no more than ten words from that same snippet that directly names or confirms the product. Do not paraphrase either field. If no specific URL can be identified, set "url" to "source unspecified" and "key" to the closest confirming phrase available.
 
 categorySignals must be a flat array of plain strings — signal descriptions only, no objects. Every entry must describe a customer technology signal — a confirmed vendor, product category, or capability. Do not add self-referential notes about classification decisions or bucket assignments — categorySignals is for customer intelligence, not internal reasoning.
 
@@ -988,7 +989,7 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
   "currentTechStack": ["product name", "product name"],
-  "techStackEvidence": { "product name": "source description" },
+  "techStackEvidence": { "product name": { "url": "https://...", "key": "verbatim confirming phrase" } },
   "categorySignals": ["signal description"],
   "itMaturityLevel": ""
 }
