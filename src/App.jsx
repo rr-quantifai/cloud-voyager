@@ -990,7 +990,18 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
                       stage === 1 && evidence[p]
                         ? <div key={p} className="relative group shrink-0">
                             <span className="text-xs px-2 py-0.5 border-l-2 border-slate-400 font-mono tracking-wider bg-slate-50 text-slate-500 cursor-default">{p.toUpperCase()}</span>
-                            <div className="absolute hidden group-hover:block z-10 pointer-events-none font-mono text-xs bg-slate-800 text-slate-200 px-2.5 py-1.5 rounded whitespace-nowrap" style={{bottom:'calc(100% + 6px)',left:0}}>{evidence[p]}</div>
+                            <div className="absolute hidden group-hover:block z-10 font-mono text-xs bg-slate-800 text-slate-200 px-2.5 py-1.5 rounded whitespace-nowrap" style={{bottom:'calc(100% + 6px)',left:0}}>
+  {(() => {
+    const src = evidence[p]
+    if (!src || !src.startsWith('http')) return <span className="pointer-events-none">{src}</span>
+    try {
+      const domain = new URL(src).hostname.replace(/^www\./, '')
+      return <a href={src} target="_blank" rel="noreferrer" className="text-slate-200 hover:text-white underline">{domain}</a>
+    } catch {
+      return <span className="pointer-events-none">{src}</span>
+    }
+  })()}
+</div>
                           </div>
                         : <span key={p} className="text-xs px-2 py-0.5 border-l-2 border-slate-400 font-mono tracking-wider bg-slate-50 text-slate-500 shrink-0">{p.toUpperCase()}</span>
                     ))}
@@ -1005,7 +1016,18 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
                     stage === 1 && evidence[p]
                       ? <div key={p} className="relative group shrink-0">
                           <span className="text-xs px-2 py-0.5 border-l-2 border-slate-500 font-mono tracking-wider bg-slate-100 text-slate-500 cursor-default">{p.toUpperCase()}</span>
-                          <div className="absolute hidden group-hover:block z-10 pointer-events-none font-mono text-xs bg-slate-800 text-slate-200 px-2.5 py-1.5 rounded whitespace-nowrap" style={{bottom:'calc(100% + 6px)',left:0}}>{evidence[p]}</div>
+                          <div className="absolute hidden group-hover:block z-10 font-mono text-xs bg-slate-800 text-slate-200 px-2.5 py-1.5 rounded whitespace-nowrap" style={{bottom:'calc(100% + 6px)',left:0}}>
+  {(() => {
+    const src = evidence[p]
+    if (!src || !src.startsWith('http')) return <span className="pointer-events-none">{src}</span>
+    try {
+      const domain = new URL(src).hostname.replace(/^www\./, '')
+      return <a href={src} target="_blank" rel="noreferrer" className="text-slate-200 hover:text-white underline">{domain}</a>
+    } catch {
+      return <span className="pointer-events-none">{src}</span>
+    }
+  })()}
+</div>
                         </div>
                       : <span key={p} className="text-xs px-2 py-0.5 border-l-2 border-slate-500 font-mono tracking-wider bg-slate-100 text-slate-500 shrink-0">{p.toUpperCase()}</span>
                   ))}</div>

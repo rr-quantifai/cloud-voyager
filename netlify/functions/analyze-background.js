@@ -885,7 +885,7 @@ Microsoft: match to the exact catalogue name from the UNOWNED PRODUCTS list.
 Non-Microsoft: use the commercial product name as stated (e.g. "Salesforce", "SAP S/4HANA", "Splunk Enterprise").
 
 BUCKET B — Workload context exists, product is defensibly inferable
-The signal names a vendor or service but also describes a specific workload or function. Map to the single most defensible product. If two products could equally serve this workload, treat as Bucket C instead.
+The signal names a vendor or service but also describes a specific workload or function. Map to the single most defensible product. If two products could equally serve this workload, treat as Bucket C instead. For any signal bearing a Microsoft, Azure, Office, or Dynamics reference, do not apply this general rule — use the Microsoft workload inference table below instead.
 
 If Round 2 verification explicitly contradicts or casts doubt on a Round 1 signal, the product must not appear in currentTechStack — route to categorySignals instead regardless of how strong the Round 1 signal was.
 
@@ -897,7 +897,7 @@ If a source confirms an older or legacy version of a product, record that produc
 
 If a named product variant exists that does not match any exact catalogue SKU name — such as a product marketed under a different tier, edition, or audience segment — do not silently upgrade or downgrade to the nearest catalogue SKU. Route to categorySignals with the exact variant name noted. Exception: for catalogue SKUs that explicitly enumerate multiple tiers in their name (such as "Microsoft 365 E3/E5"), any confirmed mention of a covered tier (E3 or E5) constitutes a Bucket A confirmation — do not treat tier-level confirmation as a variant mismatch.
 
-Microsoft workload inference — map to exact catalogue name. Apply ONLY when the signal contains an explicit Microsoft, Azure, or Dynamics reference alongside the workload keyword. A bare workload term (e.g. "ERP", "CRM", "contact centre") with no Microsoft vendor signal is Bucket C — route to categorySignals, never map to a catalogue SKU:
+Microsoft workload inference — map to exact catalogue name. This table applies ONLY when all of the following are true within a single source whose primary subject is this company's own technology environment: (1) the source explicitly names Microsoft, Azure, or Dynamics by brand or product name — terms such as "enterprise software", "Intranet", "email", "identity", or "IT systems" without a co-located Microsoft brand name do not qualify; (2) that same source also describes the specific workload being mapped; (3) the source is a company-facing document such as an IT staff profile, job posting, vendor announcement, or press release — not a Microsoft-owned page. Microsoft-owned pages (microsoft.com, aka.ms), Microsoft licensing articles, Microsoft pricing pages, and generic market reports do not confirm this company's Microsoft deployment regardless of their search score. A workload keyword in one source cannot be combined with a Microsoft reference from a different source — both must appear in the same source. A categorySignal noting unconfirmed Microsoft presence is itself unverified and cannot serve as the Microsoft reference for this table. A bare workload term with no co-located explicit Microsoft brand name in the same source is always Bucket C — route to categorySignals, never map to a catalogue SKU:
   Email, messaging, Exchange, Exchange Online → Microsoft 365 E3/E5
   Cloud compute, virtual servers, VMs, IaaS → Azure Virtual Machines
   Cloud storage, blob storage, data lake, object storage → Azure Storage and Data Lake
@@ -936,9 +936,9 @@ A bare vendor name is never a valid currentTechStack entry, for Microsoft and no
 COMMERCIAL PRODUCT FILTER — apply before any bucket:
 Exclude entirely (no bucket, no categorySignals): programming languages, scripting tools, frameworks, protocols, open-source libraries, and internal or bespoke applications with no external commercial vendor.
 
-Every other named commercial product with an identifiable external vendor belongs in currentTechStack — regardless of product category, Microsoft catalogue membership, tier, edition, version, hosting configuration, or whether it is sold as a standalone product or an integration. Middleware, VDI solutions, integration platforms, and add-ons are commercial products and must not be excluded. If the product name is identifiable and the vendor is real and external, it belongs in currentTechStack. Tier or edition uncertainty may be noted in categorySignals only if the product itself is already in currentTechStack.
+Every other named commercial product with an identifiable external vendor must proceed to bucket classification — do not pre-exclude it for reasons of product category, Microsoft catalogue membership, tier, edition, version, hosting configuration, or whether it is sold as a standalone product or an integration. Middleware, VDI solutions, integration platforms, and add-ons are commercial products and must not be excluded before bucket analysis. Tier or edition uncertainty may be noted in categorySignals only if the product itself is already in currentTechStack.
 
-MICROSOFT HARD RULE: Any signal referencing Microsoft, Azure, Office, Exchange, SharePoint, Teams, Dynamics, Copilot, Sentinel, Purview, Entra, Defender, Power BI, Power Apps, or Viva that cannot be mapped to an exact name from the UNOWNED PRODUCTS list via Bucket A or Bucket B must go to categorySignals — never into currentTechStack under any non-catalogue name.
+MICROSOFT HARD RULE: Any signal referencing Microsoft, Azure, Office, Exchange, SharePoint, Teams, Dynamics, Copilot, Sentinel, Purview, Entra, Defender, Power BI, Power Apps, or Viva that cannot be mapped to an exact name from the UNOWNED PRODUCTS list via Bucket A or the Microsoft workload inference table must go to categorySignals — never into currentTechStack under any non-catalogue name.
 
 OWNED PRODUCTS (already confirmed — exclude from currentTechStack and categorySignals): ${ownedStr}
 UNOWNED PRODUCTS (use exact names): ${unownedStr}
@@ -947,7 +947,7 @@ itMaturityLevel must be exactly one of: High, Moderate, Low.
 
 currentTechStack must be a flat array of plain strings — product names only, no objects, no metadata, no bucket labels.
 
-techStackEvidence must be a flat JSON object with one key per product in currentTechStack. Each key is the exact product name as it appears in currentTechStack. Each value is a concise source description — name the source type and domain only (e.g. "IT staff profile · linkedin.com", "press release · wahacapital.com", "job posting · linkedin.com"). Maximum 10 words per value. If no specific source can be identified, use "source unspecified".
+techStackEvidence must be a flat JSON object with one key per product in currentTechStack. Each key is the exact product name as it appears in currentTechStack. Each value must be the exact source URL copied verbatim from the [Source: url | Score: x.xx] prefix of the snippet that confirmed this product. Do not paraphrase or reconstruct the URL. If the product was confirmed from a synthesised answer with no visible source URL, or if no specific URL can be identified, use "source unspecified".
 
 categorySignals must be a flat array of plain strings — signal descriptions only, no objects. Every entry must describe a customer technology signal — a confirmed vendor, product category, or capability. Do not add self-referential notes about classification decisions or bucket assignments — categorySignals is for customer intelligence, not internal reasoning.
 
