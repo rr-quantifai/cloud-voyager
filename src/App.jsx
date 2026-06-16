@@ -165,27 +165,42 @@ function AnalysisStrip({ state, onClear }) {
 
 // ── AnalyzeButton ─────────────────────────────────────────────────────────────
 
-function AnalyzeButton({ c, keysSaved, isAnalyzing, openDropdown, setOpenDropdown, handleAnalyze }) {
-  const btnRef     = useRef(null)
-  const [pos, setPos] = useState(null)
+function AnalyzeButton({ c, keysSaved, isAnalyzing, handleAnalyze }) {
+  const btnRef               = useRef(null)
+  const [isOpen, setIsOpen]  = useState(false)
+  const [pos,    setPos]     = useState(null)
   const s1done     = c.analysisStage !== null
   const s2done     = c.everCompletedStage2 === true
   const s2disabled = !s1done
   const isDisabled = !keysSaved || isAnalyzing
-  const ddOpen     = openDropdown === c.id
+
+  useEffect(() => { if (isDisabled) setIsOpen(false) }, [isDisabled])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const closeOnOutside = () => setIsOpen(false)
+    const closeOnOther   = (e) => { if (e.detail !== c.id) setIsOpen(false) }
+    document.addEventListener('click', closeOnOutside)
+    document.addEventListener('cv-dd-open', closeOnOther)
+    return () => {
+      document.removeEventListener('click', closeOnOutside)
+      document.removeEventListener('cv-dd-open', closeOnOther)
+    }
+  }, [isOpen, c.id])
 
   function open(e) {
     e.stopPropagation()
     if (isDisabled) return
-    if (ddOpen) { setOpenDropdown(null); return }
+    if (isOpen) { setIsOpen(false); return }
     const r = btnRef.current.getBoundingClientRect()
     const flipUp = window.innerHeight - r.bottom < 96
     setPos({
-      top: flipUp ? r.top + window.scrollY - 88 - 5 : r.bottom + window.scrollY + 5,
-      left: r.left + window.scrollX,
+      top:   flipUp ? r.top + window.scrollY - 88 - 5 : r.bottom + window.scrollY + 5,
+      left:  r.left + window.scrollX,
       width: r.width,
     })
-    setOpenDropdown(c.id)
+    setIsOpen(true)
+    document.dispatchEvent(new CustomEvent('cv-dd-open', { detail: c.id }))
   }
 
   return (
@@ -193,21 +208,21 @@ function AnalyzeButton({ c, keysSaved, isAnalyzing, openDropdown, setOpenDropdow
       <button ref={btnRef} onClick={open} disabled={isDisabled}
         className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-blue-600 text-white enabled:hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5`}>
         Analyze
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transform:ddOpen?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.15s',flexShrink:0}}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transform:isOpen?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.15s',flexShrink:0}}>
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
-      {ddOpen && pos && createPortal(
+      {isOpen && pos && createPortal(
         <div style={{position:'absolute',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}}
           className="bg-white border border-slate-200 rounded-lg overflow-hidden"
           onClick={e => e.stopPropagation()}>
-          <button onClick={() => { setOpenDropdown(null); handleAnalyze(c, 1) }}
+          <button onClick={() => { setIsOpen(false); handleAnalyze(c, 1) }}
             className="flex items-center gap-2 w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors">
             <TickIcon done={s1done} />
             <span className="text-xs font-medium text-slate-700">Stage 1</span>
           </button>
           <div className="border-t border-slate-100" />
-          <button onClick={() => { setOpenDropdown(null); handleAnalyze(c, 2) }} disabled={s2disabled}
+          <button onClick={() => { setIsOpen(false); handleAnalyze(c, 2) }} disabled={s2disabled}
             className={`flex items-center gap-2 w-full px-3 py-2.5 text-left transition-colors ${s2disabled?'opacity-40 cursor-not-allowed':'hover:bg-slate-50'}`}>
             <TickIcon done={s2done} />
             <span className="text-xs font-medium text-slate-700">Stage 2</span>
@@ -570,15 +585,7 @@ function CustomerListPage() {
   }
 
   // ── Modal ─────────────────────────────────────────────────
-  const [modalState,   setModalState]   = useState(null)
-  const [openDropdown, setOpenDropdown] = useState(null)
-
-  useEffect(() => {
-    if (openDropdown === null) return
-    const handler = () => setOpenDropdown(null)
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
-  }, [openDropdown])
+  const [modalState, setModalState] = useState(null)
 
   // ── Analysis ──────────────────────────────────────────────
   const phaseTimers = useRef([])
@@ -721,8 +728,6 @@ function CustomerListPage() {
               c={c}
               keysSaved={keysSaved}
               isAnalyzing={isAnalyzing}
-              openDropdown={openDropdown}
-              setOpenDropdown={setOpenDropdown}
               handleAnalyze={handleAnalyze}
             />
             <button
@@ -750,7 +755,7 @@ function CustomerListPage() {
         )
       },
     },
-  ], [navigate, handleAnalyze, isAnalyzing, keysSaved, analysisState, openDropdown])
+  ], [navigate, handleAnalyze, isAnalyzing, keysSaved, analysisState])
 
   const table = useReactTable({
     data:            sortedFiltered,
