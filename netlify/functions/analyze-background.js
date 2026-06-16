@@ -638,7 +638,7 @@ function resolveViaAliasMap(signal) {
  *   4. Noise pattern present  → move to categorySignals (non-commercial signal)
  *   5. Remainder              → keep as non-MS commercial product
  */
-function postProcessTechStack(techStack, categorySignals) {
+function postProcessTechStack(techStack, categorySignals, techStackEvidence = {}, rawList = []) {
   const cleaned = [];
   const signals = Array.isArray(categorySignals) ? [...categorySignals] : [];
 
@@ -658,8 +658,29 @@ function postProcessTechStack(techStack, categorySignals) {
     cleaned.push(item);
   }
 
+  const rawResolved = new Set(
+    rawList
+      .filter(r => typeof r === 'string')
+      .map(r => resolveViaAliasMap(r) || (MS_PRODUCT_SET.has(r) ? r : null))
+      .filter(Boolean)
+  );
+  const gated = [];
+  for (const item of cleaned) {
+    if (!MS_PRODUCT_SET.has(item)) { gated.push(item); continue; }
+    const evidence = typeof techStackEvidence[item] === 'string' ? techStackEvidence[item] : '';
+    const hasUrl   = evidence.startsWith('http');
+    if (hasUrl) { gated.push(item); continue; }
+    const inRaw = rawResolved.has(item) || rawList.some(
+      r => typeof r === 'string' && r.toLowerCase() === item.toLowerCase()
+    );
+    signals.push(inRaw
+      ? `Microsoft product signal — found in raw extraction but source URL unspecified, validate in discovery: ${item}`
+      : `Microsoft product signal — not found in raw extraction and source URL unspecified, validate in discovery: ${item}`
+    );
+  }
+
   return {
-    currentTechStack: [...new Set(cleaned)],
+    currentTechStack: [...new Set(gated)],
     categorySignals:  [...new Set(signals)],
   };
 }
@@ -873,6 +894,8 @@ ${verificationContext}
 RAW EXTRACTED TECHNOLOGY LIST (from Round 1):
 ${rawList.join(', ')}
 
+Products absent from this list that also have no identifiable source URL in the search results above must not be placed in currentTechStack — route them to categorySignals.
+
 TECH STACK CLASSIFICATION RULES:
 
 A valid tech stack entry is a commercial product — something with a named vendor, a distinct product identity, and a purchasable license or subscription. If an item does not meet this definition, it does not belong in the tech stack.
@@ -923,6 +946,8 @@ Microsoft workload inference — map to exact catalogue name. This table applies
   Employee experience, HR platform, workforce engagement → Microsoft Viva
   Document management, intranet, file sharing → SharePoint Online
 
+NEGATIVE EXAMPLE — do not reproduce: a source stating "Administration of enterprise software (ERP, Data Protection, IPT, Intranet)" with no Microsoft brand name present in that source → all four workloads are Bucket C, categorySignals only. The term "ERP" alone, without a co-located Microsoft or Dynamics brand reference in the same source, must never be mapped to Dynamics 365 Finance and Operations or any other Microsoft catalogue product.
+
 Non-Microsoft workload inference: apply the same principle — identify the workload from context and map to the most specific commercial product that vendor offers for that workload. Examples: "SAP for HR" → SAP SuccessFactors; "SAP for finance or operations" → SAP S/4HANA; "Oracle for database" → Oracle Database; "Oracle for ERP" → Oracle Fusion.
 
 BUCKET C — Vendor or category confirmed, workload ambiguous
@@ -952,6 +977,12 @@ techStackEvidence must be a flat JSON object with one key per product in current
 categorySignals must be a flat array of plain strings — signal descriptions only, no objects. Every entry must describe a customer technology signal — a confirmed vendor, product category, or capability. Do not add self-referential notes about classification decisions or bucket assignments — categorySignals is for customer intelligence, not internal reasoning.
 
 Use the vendor's official product name exactly as commercially marketed — correct capitalisation, spacing, and punctuation preserved. Do not adopt casing from search results if it differs from the official product name.
+
+MICROSOFT PRODUCT SELF-AUDIT — complete before writing currentTechStack:
+For every Microsoft catalogue product you are about to place in currentTechStack, verify both:
+(a) The techStackEvidence entry for this product is a real HTTP URL copied verbatim from a [Source: url | Score: x.xx] prefix in the search results above — not "source unspecified"
+(b) That URL's content contains an explicit Microsoft, Azure, Office, or Dynamics brand name in the same text passage as the workload being mapped — not inferred from a separate source or section
+If either condition fails, the product must go to categorySignals only.
 
 Respond ONLY in valid JSON. No preamble. No markdown fences.
 
@@ -1130,8 +1161,10 @@ async function runStage1Pipeline({ companyName, companyWebsite, ownedProducts, a
 
   const stripped = stripPeriods(call2);
   const { currentTechStack, categorySignals: processedSignals } = postProcessTechStack(
-    stripped.currentTechStack || [],
-    stripped.categorySignals  || [],
+    stripped.currentTechStack  || [],
+    stripped.categorySignals   || [],
+    stripped.techStackEvidence || {},
+    rawList,
   );
   const companyProfile = { ...stripped, currentTechStack, categorySignals: processedSignals };
 
