@@ -163,6 +163,62 @@ function AnalysisStrip({ state, onClear }) {
   )
 }
 
+// ── AnalyzeButton ─────────────────────────────────────────────────────────────
+
+function AnalyzeButton({ c, keysSaved, isAnalyzing, openDropdown, setOpenDropdown, handleAnalyze }) {
+  const btnRef     = useRef(null)
+  const [pos, setPos] = useState(null)
+  const s1done     = c.analysisStage !== null
+  const s2done     = c.everCompletedStage2 === true
+  const s2disabled = !s1done
+  const isDisabled = !keysSaved || isAnalyzing
+  const ddOpen     = openDropdown === c.id
+
+  function open(e) {
+    e.stopPropagation()
+    if (isDisabled) return
+    if (ddOpen) { setOpenDropdown(null); return }
+    const r = btnRef.current.getBoundingClientRect()
+    const flipUp = window.innerHeight - r.bottom < 96
+    setPos({
+      top: flipUp ? r.top + window.scrollY - 88 - 5 : r.bottom + window.scrollY + 5,
+      left: r.left + window.scrollX,
+      width: r.width,
+    })
+    setOpenDropdown(c.id)
+  }
+
+  return (
+    <div onClick={e => e.stopPropagation()}>
+      <button ref={btnRef} onClick={open} disabled={isDisabled}
+        className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-blue-600 text-white enabled:hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5`}>
+        Analyze
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transform:ddOpen?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.15s',flexShrink:0}}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+      {ddOpen && pos && createPortal(
+        <div style={{position:'absolute',top:pos.top,left:pos.left,width:pos.width,zIndex:9999}}
+          className="bg-white border border-slate-200 rounded-lg overflow-hidden"
+          onClick={e => e.stopPropagation()}>
+          <button onClick={() => { setOpenDropdown(null); handleAnalyze(c, 1) }}
+            className="flex items-center gap-2 w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors">
+            <TickIcon done={s1done} />
+            <span className="text-xs font-medium text-slate-700">Stage 1</span>
+          </button>
+          <div className="border-t border-slate-100" />
+          <button onClick={() => { setOpenDropdown(null); handleAnalyze(c, 2) }} disabled={s2disabled}
+            className={`flex items-center gap-2 w-full px-3 py-2.5 text-left transition-colors ${s2disabled?'opacity-40 cursor-not-allowed':'hover:bg-slate-50'}`}>
+            <TickIcon done={s2done} />
+            <span className="text-xs font-medium text-slate-700">Stage 2</span>
+          </button>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
 // ── CustomerModal (create + edit) ─────────────────────────────────────────────
 
 function CustomerModal({ mode = 'create', customer = null, preSelectedProducts = null, onClose, onSaved }) {
@@ -661,40 +717,14 @@ function CustomerListPage() {
         const c = row.original
         return (
           <div className="flex items-center justify-end gap-2">
-            {(() => {
-              const s1done     = c.analysisStage !== null
-              const s2done     = c.everCompletedStage2 === true
-              const s2disabled = !s1done
-              const isDisabled = !keysSaved || isAnalyzing
-              const ddOpen     = openDropdown === c.id
-              return (
-                <div className="relative" onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={() => setOpenDropdown(ddOpen ? null : c.id)}
-                    disabled={isDisabled}
-                    className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-blue-600 text-white enabled:hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5`}
-                  >
-                    Analyze
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transform:ddOpen?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.15s',flexShrink:0}}>
-                      <polyline points="6 9 12 15 18 9"/>
-                    </svg>
-                  </button>
-                  {ddOpen && (
-                    <div className="absolute left-0 w-full bg-white border border-slate-200 rounded-lg z-50 overflow-hidden" style={{top:'calc(100% + 5px)'}}>
-                      <button onClick={() => { setOpenDropdown(null); handleAnalyze(c, 1) }} className="flex items-center gap-2 w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors">
-                        <TickIcon done={s1done} />
-                        <span className="text-xs font-medium text-slate-700">Stage 1</span>
-                      </button>
-                      <div className="border-t border-slate-100" />
-                      <button onClick={() => { setOpenDropdown(null); handleAnalyze(c, 2) }} disabled={s2disabled} className={`flex items-center gap-2 w-full px-3 py-2.5 text-left transition-colors ${s2disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-50'}`}>
-                        <TickIcon done={s2done} />
-                        <span className="text-xs font-medium text-slate-700">Stage 2</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
+            <AnalyzeButton
+              c={c}
+              keysSaved={keysSaved}
+              isAnalyzing={isAnalyzing}
+              openDropdown={openDropdown}
+              setOpenDropdown={setOpenDropdown}
+              handleAnalyze={handleAnalyze}
+            />
             <button
               onClick={() => navigate(`/profile/${encodeURIComponent(c.id)}`)}
               disabled={!c.analysisComplete}
@@ -1223,10 +1253,14 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
 
       if (stage === 1) {
         console.group(`[Cloud Voyager] ${customer.id} — Stage 1 output`)
-        console.log('Raw Tavily context (9 searches):', searchContext)
-        console.log('Verification context (4 searches):', verificationContext)
         console.log('Verified tech stack:', companyProfile?.currentTechStack)
         console.log('Category signals:', companyProfile?.categorySignals)
+        console.groupCollapsed('Raw Tavily context (9 searches)')
+        console.log(searchContext)
+        console.groupEnd()
+        console.groupCollapsed('Verification context (4 searches)')
+        console.log(verificationContext)
+        console.groupEnd()
         console.groupEnd()
       }
 
