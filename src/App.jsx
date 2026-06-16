@@ -79,6 +79,15 @@ function Dots() {
 
 // ── CategoryStagesFull ────────────────────────────────────────────────────────
 
+function TickIcon({ done }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={done ? '#3b82f6' : '#cbd5e1'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="9 12 11 14.5 15 10"/>
+    </svg>
+  )
+}
+
 function CategoryStagesFull({ categoryStages }) {
   return (
     <div className="flex gap-1">
@@ -505,7 +514,15 @@ function CustomerListPage() {
   }
 
   // ── Modal ─────────────────────────────────────────────────
-  const [modalState, setModalState] = useState(null)
+  const [modalState,   setModalState]   = useState(null)
+  const [openDropdown, setOpenDropdown] = useState(null)
+
+  useEffect(() => {
+    if (openDropdown === null) return
+    const handler = () => setOpenDropdown(null)
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [openDropdown])
 
   // ── Analysis ──────────────────────────────────────────────
   const phaseTimers = useRef([])
@@ -523,16 +540,14 @@ function CustomerListPage() {
     setDateSortCol(null); setDateSortDir('desc')
   }
 
-  const handleAnalyze = useCallback(async (customer) => {
+  const handleAnalyze = useCallback(async (customer, stage) => {
     phaseTimers.current.forEach(clearTimeout)
     phaseTimers.current = []
 
     window.scrollTo({ top: 0, behavior: 'smooth' })
     setAnalysisState({ customerId: customer.id, phase: 'initializing' })
 
-    // Determine which stage to run
     const latestAnalysis = await getLatestAnalysis(customer.id)
-    const stage = latestAnalysis?.stage === 1 ? 2 : 1
 
     if (stage === 1) {
       phaseTimers.current = [
@@ -647,23 +662,37 @@ function CustomerListPage() {
         return (
           <div className="flex items-center justify-end gap-2">
             {(() => {
-              const isStage1Complete = c.analysisStage === 1
-              const isStage2Complete = c.analysisStage === 2
-              const isReAnalyze      = c.everCompletedStage2 === true
-              const showStage2Btn    = isStage1Complete && !isStage2Complete
-              const label = isReAnalyze ? 'Analyze Again' : 'Analyze'
-              const isGreen    = showStage2Btn
+              const s1done     = c.analysisStage !== null
+              const s2done     = c.everCompletedStage2 === true
+              const s2disabled = !s1done
               const isDisabled = !keysSaved || isAnalyzing
+              const ddOpen     = openDropdown === c.id
               return (
-                <button
-                  onClick={() => handleAnalyze(c)}
-                  disabled={isDisabled}
-                  className={`${BUTTON_H} px-3 rounded-md text-sm font-medium text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-                    isGreen ? 'bg-emerald-600 enabled:hover:bg-emerald-700' : 'bg-blue-600 enabled:hover:bg-blue-700'
-                  } ${isGreen && !isDisabled ? 'btn-pulse' : ''}`}
-                >
-                  {label}
-                </button>
+                <div className="relative" onClick={e => e.stopPropagation()}>
+                  <button
+                    onClick={() => setOpenDropdown(ddOpen ? null : c.id)}
+                    disabled={isDisabled}
+                    className={`${BUTTON_H} px-3 rounded-md text-sm font-medium bg-blue-600 text-white enabled:hover:bg-blue-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5`}
+                  >
+                    Analyze
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{transform:ddOpen?'rotate(180deg)':'rotate(0deg)',transition:'transform 0.15s',flexShrink:0}}>
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                  {ddOpen && (
+                    <div className="absolute left-0 w-full bg-white border border-slate-200 rounded-lg z-50 overflow-hidden" style={{top:'calc(100% + 5px)'}}>
+                      <button onClick={() => { setOpenDropdown(null); handleAnalyze(c, 1) }} className="flex items-center gap-2 w-full px-3 py-2.5 text-left hover:bg-slate-50 transition-colors">
+                        <TickIcon done={s1done} />
+                        <span className="text-xs font-medium text-slate-700">Stage 1</span>
+                      </button>
+                      <div className="border-t border-slate-100" />
+                      <button onClick={() => { setOpenDropdown(null); handleAnalyze(c, 2) }} disabled={s2disabled} className={`flex items-center gap-2 w-full px-3 py-2.5 text-left transition-colors ${s2disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-50'}`}>
+                        <TickIcon done={s2done} />
+                        <span className="text-xs font-medium text-slate-700">Stage 2</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               )
             })()}
             <button
@@ -691,7 +720,7 @@ function CustomerListPage() {
         )
       },
     },
-  ], [navigate, handleAnalyze, isAnalyzing, keysSaved, analysisState])
+  ], [navigate, handleAnalyze, isAnalyzing, keysSaved, analysisState, openDropdown])
 
   const table = useReactTable({
     data:            sortedFiltered,
@@ -874,6 +903,7 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
   const msOwned   = ownedProducts.filter(p => ALL_MS_PRODUCTS.has(p))
   const msFound   = techStack.filter(p => ALL_MS_PRODUCTS.has(p) && !ownedProducts.includes(p))
   const nonMs     = techStack.filter(p => !ALL_MS_PRODUCTS.has(p))
+  const evidence  = profile.techStackEvidence || {}
 
   return (
     <div className="space-y-6">
@@ -893,7 +923,7 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
       {/* Current Tech Stack */}
       <div className="bg-white border border-slate-200 rounded">
         <div className="flex items-center gap-3 px-4 py-4">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Current Tech Stack</span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">{stage === 1 ? 'Product Signals' : 'Current Tech Stack'}</span>
           <div className="flex-1" />
           <button
             onClick={() => onUpdateProducts(msFound)}
@@ -922,7 +952,12 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
               {msFound.length > 0
                 ? <div className="flex gap-2">
                     {msFound.map(p => (
-                      <span key={p} className="text-xs px-2 py-0.5 border-l-2 border-slate-400 font-mono tracking-wider bg-slate-50 text-slate-500 shrink-0">{p.toUpperCase()}</span>
+                      stage === 1 && evidence[p]
+                        ? <div key={p} className="relative group shrink-0">
+                            <span className="text-xs px-2 py-0.5 border-l-2 border-slate-400 font-mono tracking-wider bg-slate-50 text-slate-500 cursor-default">{p.toUpperCase()}</span>
+                            <div className="absolute hidden group-hover:block z-10 pointer-events-none font-mono text-xs bg-slate-800 text-slate-200 px-2.5 py-1.5 rounded whitespace-nowrap" style={{bottom:'calc(100% + 6px)',left:0}}>{evidence[p]}</div>
+                          </div>
+                        : <span key={p} className="text-xs px-2 py-0.5 border-l-2 border-slate-400 font-mono tracking-wider bg-slate-50 text-slate-500 shrink-0">{p.toUpperCase()}</span>
                     ))}
                   </div>
                 : <span className="text-sm text-slate-400">No products to display</span>}
@@ -932,13 +967,31 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
               <span className="text-slate-300 shrink-0">·</span>
               {nonMs.length > 0
                 ? <div className="flex gap-2">{nonMs.map(p => (
-                    <span key={p} className="text-xs px-2 py-0.5 border-l-2 border-slate-500 font-mono tracking-wider bg-slate-100 text-slate-500 shrink-0">{p.toUpperCase()}</span>
+                    stage === 1 && evidence[p]
+                      ? <div key={p} className="relative group shrink-0">
+                          <span className="text-xs px-2 py-0.5 border-l-2 border-slate-500 font-mono tracking-wider bg-slate-100 text-slate-500 cursor-default">{p.toUpperCase()}</span>
+                          <div className="absolute hidden group-hover:block z-10 pointer-events-none font-mono text-xs bg-slate-800 text-slate-200 px-2.5 py-1.5 rounded whitespace-nowrap" style={{bottom:'calc(100% + 6px)',left:0}}>{evidence[p]}</div>
+                        </div>
+                      : <span key={p} className="text-xs px-2 py-0.5 border-l-2 border-slate-500 font-mono tracking-wider bg-slate-100 text-slate-500 shrink-0">{p.toUpperCase()}</span>
                   ))}</div>
                 : <span className="text-sm text-slate-400">No products to display</span>}
             </div>
           </div>
         </div>
       </div>
+
+      {stage === 1 && profile.categorySignals?.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded">
+          <div className="flex items-center gap-3 px-4 py-4">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">Intelligence Signals</span>
+          </div>
+          <div className="px-4 py-4 border-t border-slate-200 flex flex-col gap-2.5">
+            {profile.categorySignals.map((signal, i) => (
+              <p key={i} className="m-0 text-sm text-slate-600 leading-relaxed pl-2.5 border-l-2 border-slate-200">{signal}</p>
+            ))}
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -947,6 +947,8 @@ itMaturityLevel must be exactly one of: High, Moderate, Low.
 
 currentTechStack must be a flat array of plain strings — product names only, no objects, no metadata, no bucket labels.
 
+techStackEvidence must be a flat JSON object with one key per product in currentTechStack. Each key is the exact product name as it appears in currentTechStack. Each value is a concise source description — name the source type and domain only (e.g. "IT staff profile · linkedin.com", "press release · wahacapital.com", "job posting · linkedin.com"). Maximum 10 words per value. If no specific source can be identified, use "source unspecified".
+
 categorySignals must be a flat array of plain strings — signal descriptions only, no objects. Every entry must describe a customer technology signal — a confirmed vendor, product category, or capability. Do not add self-referential notes about classification decisions or bucket assignments — categorySignals is for customer intelligence, not internal reasoning.
 
 Use the vendor's official product name exactly as commercially marketed — correct capitalisation, spacing, and punctuation preserved. Do not adopt casing from search results if it differs from the official product name.
@@ -955,6 +957,7 @@ Respond ONLY in valid JSON. No preamble. No markdown fences.
 
 {
   "currentTechStack": ["product name", "product name"],
+  "techStackEvidence": { "product name": "source description" },
   "categorySignals": ["signal description"],
   "itMaturityLevel": ""
 }
