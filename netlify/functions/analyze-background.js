@@ -534,7 +534,7 @@ function labelFromScore(score) {
 function resolveModelId(model) {
   if (model === 'opus')  return 'claude-opus-4-8';
   if (model === 'haiku') return 'claude-haiku-4-5-20251001';
-  return 'claude-sonnet-4-6';
+  return 'claude-sonnet-5';
 }
 
 function stripPeriods(val) {
