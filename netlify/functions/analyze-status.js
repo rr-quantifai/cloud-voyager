@@ -1,13 +1,5 @@
 'use strict';
 
-// ============================================================
-// netlify/functions/analyze-status.js
-//
-// Lightweight polling endpoint. The browser calls this every
-// 4 seconds after triggering analyze-background.
-// Reads from Netlify Blobs and returns whatever is there.
-// ============================================================
-
 const { getStore } = require('@netlify/blobs');
 
 const BLOB_STORE = 'cv-analyses';
@@ -36,7 +28,6 @@ exports.handler = async (event) => {
     const store = getStore({ name: BLOB_STORE, consistency: 'strong', siteID: process.env.SITE_ID, token: netlifyToken });
     const raw   = await store.get(customerId);
 
-    // Not ready yet — background function still running
     if (raw === null) {
       return {
         statusCode: 200,
@@ -45,7 +36,6 @@ exports.handler = async (event) => {
       };
     }
 
-    // Only delete terminal blobs — 'running' must persist until the background function overwrites it
     let parsedStatus;
     try { parsedStatus = JSON.parse(raw)?.status; } catch { parsedStatus = null; }
     if (parsedStatus === 'complete' || parsedStatus === 'error' || !parsedStatus) {

@@ -1,9 +1,4 @@
-// ─── Categories ───────────────────────────────────────────────────────────────
-
 export const CATEGORIES = ['Cloud', 'Modern Work', 'Security', 'AI', 'BizApps']
-
-// ─── Product Catalogue ────────────────────────────────────────────────────────
-// Ordered entry → advanced within each category
 
 export const PRODUCTS_BY_CATEGORY = {
   'Cloud': [
@@ -43,8 +38,6 @@ export const PRODUCTS_BY_CATEGORY = {
   ],
 }
 
-// ─── Category Accent Colours ──────────────────────────────────────────────────
-
 export const CATEGORY_CLASSES = {
   'Cloud':       { bg: 'bg-blue-100',    text: 'text-blue-700',    pillBg: 'bg-blue-50',    pillBorder: 'border-blue-400'    },
   'Modern Work': { bg: 'bg-violet-100',  text: 'text-violet-700',  pillBg: 'bg-violet-50',  pillBorder: 'border-violet-400'  },
@@ -53,14 +46,6 @@ export const CATEGORY_CLASSES = {
   'BizApps':     { bg: 'bg-emerald-100', text: 'text-emerald-700', pillBg: 'bg-emerald-50', pillBorder: 'border-emerald-400' },
 }
 
-/**
- * Derives categoryStages from a list of owned product names.
- * Active      = ≥1 product owned in the category
- * Established = all products owned in the category
- * Not Started = none owned
- * @param {string[]} ownedProducts
- * @returns {{ [category: string]: string }}
- */
 export function computeCategoryStages(ownedProducts) {
   const owned = new Set(ownedProducts)
   return Object.fromEntries(
@@ -75,11 +60,7 @@ export function computeCategoryStages(ownedProducts) {
   )
 }
 
-// ─── UI Constants ─────────────────────────────────────────────────────────────
-
 export const BUTTON_H = 'h-9'
-
-// ─── IndexedDB Store Names ────────────────────────────────────────────────────
 
 export const DB_NAME    = 'cloud-voyager'
 export const DB_VERSION = 1
@@ -89,7 +70,5 @@ export const STORES = {
   ANALYSES:  'analyses',
   SETTINGS:  'settings',
 }
-
-// ─── Settings Key ─────────────────────────────────────────────────────────────
 
 export const SETTINGS_KEY = 'apiKeys'

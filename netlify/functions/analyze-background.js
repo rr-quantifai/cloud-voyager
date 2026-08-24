@@ -1,24 +1,8 @@
 'use strict';
 
-// ============================================================
-// netlify/functions/analyze-background.js
-//
-// Netlify Background Function — the -background suffix tells
-// Netlify to return 202 immediately and run this handler
-// asynchronously for up to 15 minutes.
-//
-// Routes to Stage 1 or Stage 2 pipeline based on `stage` in
-// the request body. Results are written to Netlify Blobs.
-// The browser polls /fn/analyze-status to retrieve them.
-// ============================================================
-
 const { getStore } = require('@netlify/blobs');
 
-// ── Blob store name ───────────────────────────────────────────────────────────
-
 const BLOB_STORE = 'cv-analyses';
-
-// ── Product catalogue ─────────────────────────────────────────────────────────
 
 const PRODUCTS = [
   { name: 'Azure Virtual Machines',                  category: 'Cloud'       },
@@ -48,13 +32,7 @@ const PRODUCTS = [
   { name: 'Dynamics 365 Finance and Operations',     category: 'BizApps'     },
 ];
 
-// ── Microsoft product alias map ───────────────────────────────────────────────
-// Lowercase aliases → exact catalogue SKU names.
-// Covers abbreviations, rebranded names, and component names that roll up to a SKU.
-// Used in post-processing to resolve Claude's near-misses without burdening the prompt.
-
 const MS_PRODUCT_ALIASES = {
-  // Azure Virtual Machines
   'azure virtual machine':             'Azure Virtual Machines',
   'azure vms':                         'Azure Virtual Machines',
   'azure vm':                          'Azure Virtual Machines',
@@ -64,7 +42,6 @@ const MS_PRODUCT_ALIASES = {
   'azure servers':                     'Azure Virtual Machines',
   'azure cloud infrastructure':        'Azure Virtual Machines',
 
-  // Azure SQL and Cosmos DB
   'azure sql':                         'Azure SQL and Cosmos DB',
   'azure sql database':                'Azure SQL and Cosmos DB',
   'azure database':                    'Azure SQL and Cosmos DB',
@@ -76,7 +53,6 @@ const MS_PRODUCT_ALIASES = {
   'azure managed database':            'Azure SQL and Cosmos DB',
   'sql on azure':                      'Azure SQL and Cosmos DB',
 
-  // Azure Storage and Data Lake
   'azure storage':                     'Azure Storage and Data Lake',
   'azure blob storage':                'Azure Storage and Data Lake',
   'azure blob':                        'Azure Storage and Data Lake',
@@ -87,7 +63,6 @@ const MS_PRODUCT_ALIASES = {
   'azure object storage':              'Azure Storage and Data Lake',
   'azure storage account':             'Azure Storage and Data Lake',
 
-  // Azure App Service
   'azure web apps':                    'Azure App Service',
   'azure web app':                     'Azure App Service',
   'azure paas':                        'Azure App Service',
@@ -96,7 +71,6 @@ const MS_PRODUCT_ALIASES = {
   'azure functions':                   'Azure App Service',
   'azure logic apps':                  'Azure App Service',
 
-  // Azure Kubernetes Service
   'aks':                               'Azure Kubernetes Service',
   'kubernetes on azure':               'Azure Kubernetes Service',
   'azure containers':                  'Azure Kubernetes Service',
@@ -106,7 +80,6 @@ const MS_PRODUCT_ALIASES = {
   'azure k8s':                         'Azure Kubernetes Service',
   'azure container registry':          'Azure Kubernetes Service',
 
-  // Microsoft 365 E3/E5
   'microsoft 365':                     'Microsoft 365 E3/E5',
   'm365':                              'Microsoft 365 E3/E5',
   'office 365':                        'Microsoft 365 E3/E5',
@@ -125,7 +98,6 @@ const MS_PRODUCT_ALIASES = {
   'office 365 e5':                     'Microsoft 365 E3/E5',
   'microsoft 365 business':            'Microsoft 365 E3/E5',
 
-  // Microsoft Teams
   'ms teams':                          'Microsoft Teams',
   'teams calling':                     'Microsoft Teams',
   'teams meetings':                    'Microsoft Teams',
@@ -135,7 +107,6 @@ const MS_PRODUCT_ALIASES = {
   'teams premium':                     'Microsoft Teams',
   'microsoft teams premium':           'Microsoft Teams',
 
-  // SharePoint Online
   'sharepoint':                        'SharePoint Online',
   'microsoft sharepoint':              'SharePoint Online',
   'sp online':                         'SharePoint Online',
@@ -145,7 +116,6 @@ const MS_PRODUCT_ALIASES = {
   'sharepoint farm':                   'SharePoint Online',
   'sharepoint server':                 'SharePoint Online',
 
-  // Microsoft Viva
   'viva':                              'Microsoft Viva',
   'microsoft viva':                    'Microsoft Viva',
   'viva insights':                     'Microsoft Viva',
@@ -155,7 +125,6 @@ const MS_PRODUCT_ALIASES = {
   'viva suite':                        'Microsoft Viva',
   'microsoft employee experience':     'Microsoft Viva',
 
-  // Microsoft Entra ID
   'microsoft entra':                   'Microsoft Entra ID',
   'entra id':                          'Microsoft Entra ID',
   'azure active directory':            'Microsoft Entra ID',
@@ -175,7 +144,6 @@ const MS_PRODUCT_ALIASES = {
   'enterprise mobility and security e3': 'Microsoft Entra ID',
   'enterprise mobility and security e5': 'Microsoft Entra ID',
 
-  // Microsoft Defender for Endpoint
   'defender for endpoint':             'Microsoft Defender for Endpoint',
   'mde':                               'Microsoft Defender for Endpoint',
   'microsoft endpoint protection':     'Microsoft Defender for Endpoint',
@@ -184,14 +152,12 @@ const MS_PRODUCT_ALIASES = {
   'mdatp':                             'Microsoft Defender for Endpoint',
   'microsoft endpoint security':       'Microsoft Defender for Endpoint',
 
-  // Microsoft Defender for Cloud
   'azure security center':             'Microsoft Defender for Cloud',
   'asc':                               'Microsoft Defender for Cloud',
   'azure defender':                    'Microsoft Defender for Cloud',
   'microsoft cspm':                    'Microsoft Defender for Cloud',
   'microsoft cloud security posture':  'Microsoft Defender for Cloud',
 
-  // Microsoft Intune
   'microsoft intune':                  'Microsoft Intune',
   'intune':                            'Microsoft Intune',
   'microsoft endpoint manager':        'Microsoft Intune',
@@ -199,7 +165,6 @@ const MS_PRODUCT_ALIASES = {
   'microsoft mdm':                     'Microsoft Intune',
   'microsoft mobile device management': 'Microsoft Intune',
 
-  // Microsoft Purview
   'azure purview':                     'Microsoft Purview',
   'microsoft data governance':         'Microsoft Purview',
   'microsoft compliance':              'Microsoft Purview',
@@ -218,14 +183,12 @@ const MS_PRODUCT_ALIASES = {
   'priva privacy risk management':     'Microsoft Purview',
   'priva subject rights':              'Microsoft Purview',
 
-  // Microsoft Sentinel
   'azure sentinel':                    'Microsoft Sentinel',
   'microsoft siem':                    'Microsoft Sentinel',
   'microsoft soc platform':            'Microsoft Sentinel',
   'microsoft threat detection':        'Microsoft Sentinel',
   'microsoft security analytics':      'Microsoft Sentinel',
 
-  // Microsoft Copilot for M365
   'copilot for microsoft 365':         'Microsoft Copilot for M365',
   'copilot for m365':                  'Microsoft Copilot for M365',
   'm365 copilot':                      'Microsoft Copilot for M365',
@@ -240,7 +203,6 @@ const MS_PRODUCT_ALIASES = {
   'copilot for service':               'Microsoft Copilot for M365',
   'microsoft 365 copilot for service': 'Microsoft Copilot for M365',
 
-  // Copilot Studio
   'power virtual agents':              'Copilot Studio',
   'pva':                               'Copilot Studio',
   'microsoft chatbot':                 'Copilot Studio',
@@ -248,7 +210,6 @@ const MS_PRODUCT_ALIASES = {
   'microsoft virtual agent':           'Copilot Studio',
   'microsoft conversational ai':       'Copilot Studio',
 
-  // Azure OpenAI Service
   'azure openai':                      'Azure OpenAI Service',
   'openai on azure':                   'Azure OpenAI Service',
   'gpt on azure':                      'Azure OpenAI Service',
@@ -261,12 +222,10 @@ const MS_PRODUCT_ALIASES = {
   'azure openai provisioned':          'Azure OpenAI Service',
   'azure openai provisioned managed':  'Azure OpenAI Service',
 
-  // Azure AI Studio
   'azure ai studio':                   'Azure AI Studio',
   'microsoft ai studio':               'Azure AI Studio',
   'azure ai foundry':                  'Azure AI Studio',
 
-  // Azure Machine Learning
   'azure ml':                          'Azure Machine Learning',
   'aml':                               'Azure Machine Learning',
   'microsoft ml platform':             'Azure Machine Learning',
@@ -274,13 +233,11 @@ const MS_PRODUCT_ALIASES = {
   'azure mlops':                       'Azure Machine Learning',
   'azure machine learning studio':     'Azure Machine Learning',
 
-  // Microsoft Fabric
   'microsoft fabric':                  'Microsoft Fabric',
   'fabric capacity':                   'Microsoft Fabric',
   'azure synapse':                     'Microsoft Fabric',
   'azure synapse analytics':           'Microsoft Fabric',
 
-  // Power Platform
   'microsoft power platform':          'Power Platform',
   'power bi':                          'Power Platform',
   'power apps':                        'Power Platform',
@@ -293,7 +250,6 @@ const MS_PRODUCT_ALIASES = {
   'microsoft low-code':                'Power Platform',
   'microsoft low code':                'Power Platform',
 
-  // Dynamics 365 Sales
   'dynamics crm':                      'Dynamics 365 Sales',
   'd365 sales':                        'Dynamics 365 Sales',
   'dynamics 365 crm':                  'Dynamics 365 Sales',
@@ -302,12 +258,10 @@ const MS_PRODUCT_ALIASES = {
   'microsoft dynamics crm':            'Dynamics 365 Sales',
   'dynamics 365 customer engagement':  'Dynamics 365 Sales',
 
-  // Dynamics 365 Customer Service
   'dynamics 365 customer service':     'Dynamics 365 Customer Service',
   'd365 customer service':             'Dynamics 365 Customer Service',
   'dynamics customer service':         'Dynamics 365 Customer Service',
 
-  // Dynamics 365 Finance and Operations
   'dynamics 365 finance':              'Dynamics 365 Finance and Operations',
   'dynamics 365 operations':           'Dynamics 365 Finance and Operations',
   'd365 f&o':                          'Dynamics 365 Finance and Operations',
@@ -324,8 +278,6 @@ const MS_PRODUCT_ALIASES = {
   'dynamics 365 scm':                  'Dynamics 365 Finance and Operations',
   'd365 scm':                          'Dynamics 365 Finance and Operations',
 };
-
-// ── Scoring rubric ────────────────────────────────────────────────────────────
 
 const SCORING_RUBRIC = `
 Azure Virtual Machines
@@ -468,8 +420,6 @@ Power Platform
   Moderate: manual workflow or approval processes
 `.trim();
 
-// ── Scoring framework ─────────────────────────────────────────────────────────
-
 const SCORING_FRAMEWORK = `
 BASE SCORES — use the strongest single signal as the starting point:
   No relevant signals found → 10
@@ -494,8 +444,6 @@ HARD OVERRIDES:
   Score ceiling: 95 — do not assign 96–100
 `.trim();
 
-// ── Cross-sell trigger map ────────────────────────────────────────────────────
-
 const CROSS_SELL_MAP = `
 If customer owns any Azure Cloud product → High propensity for: Microsoft Defender for Cloud, Microsoft Sentinel, Azure OpenAI Service, Microsoft Fabric
 If customer owns Microsoft 365 E3/E5 → High propensity for: Microsoft Copilot for M365, Microsoft Purview, Microsoft Defender for Endpoint, Microsoft Intune
@@ -511,8 +459,6 @@ If customer owns Microsoft Intune → High propensity for: Microsoft Defender fo
 If customer owns Microsoft Fabric → High propensity for: Azure OpenAI Service, Azure Machine Learning, Azure SQL and Cosmos DB
 `.trim();
 
-// ── Error messages ────────────────────────────────────────────────────────────
-
 const ERROR_MESSAGES = {
   ANTHROPIC_AUTH_ERROR:       'Something went wrong — incorrect Anthropic API details, input correct details and try again',
   ANTHROPIC_PAYMENT_ERROR:    'Something went wrong — check your Anthropic account and try again',
@@ -521,8 +467,6 @@ const ERROR_MESSAGES = {
   TAVILY_AUTH_ERROR:          'Something went wrong — incorrect Tavily API details, input correct details and try again',
   TAVILY_ERROR:               'Something went wrong — check your Tavily account and try again',
 };
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function labelFromScore(score) {
   if (score >= 76) return 'Very High';
@@ -595,11 +539,8 @@ Website: ${companyWebsite}`;
   };
 }
 
-// Derived from PRODUCTS — recognises exact SKU strings in post-processing.
 const MS_PRODUCT_SET = new Set(PRODUCTS.map(p => p.name));
 
-// Microsoft brand/product keywords — signals containing these but unresolvable
-// to a specific SKU are routed to categorySignals rather than currentTechStack.
 const MS_KEYWORDS = [
   'microsoft', 'azure', 'office 365', 'exchange online', 'sharepoint',
   'dynamics', 'copilot', 'sentinel', 'purview', 'entra', 'defender',
@@ -607,18 +548,12 @@ const MS_KEYWORDS = [
   'windows 365',
 ];
 
-// Substrings that mark a signal as non-commercial or unresolved.
 const NOISE_PATTERNS = [
   'vendor unconfirmed', 'unspecified', 'unknown vendor',
   'private-cloud hosted', 'custom-built', 'bespoke',
   'proprietary system', 'internal application', 'internal app',
 ];
 
-/**
- * Resolves a free-text signal to an exact MS catalogue SKU.
- * Pass 1: exact lookup. Pass 2: substring match for aliases > 7 chars.
- * Returns null if no alias matches.
- */
 function resolveViaAliasMap(signal) {
   if (typeof signal !== 'string') return null;
   const lower = signal.toLowerCase().trim();
@@ -629,15 +564,6 @@ function resolveViaAliasMap(signal) {
   return null;
 }
 
-/**
- * Post-processes Claude's Stage 1 tech stack output.
- * Four-pass safety net applied after the prompt:
- *   1. Exact SKU match        → keep
- *   2. Alias map hit          → replace with canonical SKU name
- *   3. MS keyword present     → move to categorySignals (unresolved MS signal)
- *   4. Noise pattern present  → move to categorySignals (non-commercial signal)
- *   5. Remainder              → keep as non-MS commercial product
- */
 function postProcessTechStack(techStack, categorySignals, techStackEvidence = {}, rawList = []) {
   const cleaned = [];
   const signals = Array.isArray(categorySignals) ? [...categorySignals] : [];
@@ -685,8 +611,6 @@ function postProcessTechStack(techStack, categorySignals, techStackEvidence = {}
     categorySignals:  [...new Set(signals)],
   };
 }
-
-// ── Tavily ────────────────────────────────────────────────────────────────────
 
 const TAVILY_FALLBACK =
   '[No company-specific signals found — apply sector-level inference as per Stage 1 fallback instructions]';
@@ -776,8 +700,6 @@ async function gatherContext(companyName, companyWebsite, disambiguation, tavily
 }
 
 async function gatherVerificationContext(companyName, companyWebsite, disambiguation, rawList, tavilyKey) {
-  // Split rawList positionally — extraction already produces well-formed product
-  // names; no MS/non-MS classification needed at this stage.
   const firstBatch  = rawList.slice(0, 3).join(' ');
   const secondBatch = rawList.slice(3, 6).join(' ');
   const domain = extractDomain(companyWebsite);
@@ -819,8 +741,6 @@ async function gatherVerificationContext(companyName, companyWebsite, disambigua
   return blocks.join('\n\n');
 }
 
-// ── Anthropic ─────────────────────────────────────────────────────────────────
-
 async function claudeCall(systemPrompt, userContent, apiKey, model, temperature = 1) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method:  'POST',
@@ -847,8 +767,6 @@ async function claudeCall(systemPrompt, userContent, apiKey, model, temperature 
   const text = data.content?.find(b => b.type === 'text')?.text ?? '';
   return { text, stopReason: data.stop_reason ?? 'unknown' };
 }
-
-// ── Prompt builders ───────────────────────────────────────────────────────────
 
 function buildRawExtractionPrompt(context) {
   const system = `You are a technology intelligence analyst. Extract technology product and infrastructure names from search results. Return only a flat JSON array of strings. No analysis. No scoring. No explanation.`;
@@ -1129,26 +1047,19 @@ ${context}`;
   return { system, user };
 }
 
-// ── Stage 1 pipeline ──────────────────────────────────────────────────────────
-
 async function runStage1Pipeline({ companyName, companyWebsite, ownedProducts, anthropicKey, tavilyKey }) {
-  // Step 0 — Disambiguate company identity
   const disambiguation = await disambiguate(companyName, companyWebsite, anthropicKey);
 
-  // Step 1 — Run 9 Tavily searches
   const context = await gatherContext(companyName, companyWebsite, disambiguation, tavilyKey);
 
-  // Step 2 — Claude Call 1: raw extraction (Haiku — no reasoning required)
   const { system: sys1, user: user1 } = buildRawExtractionPrompt(context);
   const { text: raw1 } = await claudeCall(sys1, user1, anthropicKey, 'haiku', 0);
 
   const parsed1 = extractJSON(raw1);
   const rawList = Array.isArray(parsed1) ? parsed1 : [];
 
-  // Step 3 — Run 3 targeted verification searches (queries built from rawList)
   const verificationContext = await gatherVerificationContext(companyName, companyWebsite, disambiguation, rawList, tavilyKey);
 
-  // Step 4 — Claude Call 2: verified tech stack
   const { system: sys2, user: user2 } = buildVerifiedTechStackPrompt(
     companyName, disambiguation, context, verificationContext, rawList, ownedProducts,
   );
@@ -1169,7 +1080,6 @@ async function runStage1Pipeline({ companyName, companyWebsite, ownedProducts, a
   );
   const companyProfile = { ...stripped, currentTechStack, categorySignals: processedSignals };
 
-  // Step 5 — Return result for Blobs write
   return {
     companyProfile,
     categorySignals:       processedSignals,
@@ -1180,12 +1090,8 @@ async function runStage1Pipeline({ companyName, companyWebsite, ownedProducts, a
   };
 }
 
-// ── Stage 2 pipeline ──────────────────────────────────────────────────────────
-
 async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack, categorySignals, searchContext, disambiguation, anthropicKey }) {
-  // Step 1 — No Tavily searches; use searchContext from Stage 1
 
-  // Step 2 — Claude Call 3: full profile + propensity scoring
   const { system: sys3, user: user3 } = buildProfilePrompt(
     companyName, disambiguation, searchContext, ownedProducts, verifiedTechStack, categorySignals,
   );
@@ -1206,19 +1112,15 @@ async function runStage2Pipeline({ companyName, ownedProducts, verifiedTechStack
     label: labelFromScore(Number(ps.score) || 0),
   }));
 
-  // Freeze tech stack from Stage 1 — Stage 2 never modifies it
   const profileData = stripPeriods(call3.companyProfile);
   const frozenProfile = { ...profileData, currentTechStack: verifiedTechStack };
 
-  // Step 3 — Return result for Blobs write
   return {
     companyProfile: frozenProfile,
     productScores:  stripPeriods(productScores),
     modelVersion:   'opus',
   };
 }
-
-// ── Handler ───────────────────────────────────────────────────────────────────
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return;
@@ -1239,21 +1141,17 @@ exports.handler = async (event) => {
     netlifyKey,
     customerId,
     stage                        = 1,
-    // Stage 2 specific
     verifiedTechStack  = [],
     categorySignals    = [],
     searchContext      = '',
     disambiguation     = null,
   } = body;
 
-  // customerId and netlifyKey are required to initialise the store —
-  // without them there is nowhere to write errors, so return early
   if (!customerId?.trim()) return;
   if (!netlifyKey?.trim()) return;
 
   const store = getStore({ name: BLOB_STORE, consistency: 'strong', siteID: process.env.SITE_ID, token: netlifyKey.trim() });
 
-  // Validate — write errors to Blobs so the poller surfaces them to the user
   if (!companyName?.trim()) {
     await store.set(customerId, JSON.stringify({ status: 'error', error: 'companyName is required' }));
     return;

@@ -1,7 +1,3 @@
-// ============================================================
-// SECTION 1 — IMPORTS AND ZUSTAND STORE
-// ============================================================
-
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { BrowserRouter, Routes, Route, Outlet, Navigate, useParams, useNavigate } from 'react-router-dom'
@@ -35,8 +31,6 @@ import {
   clearAllData,
 } from './db.js'
 
-// ─── Zustand Store ────────────────────────────────────────────────────────────
-
 const useStore = create((set) => ({
   searchQuery:       '',
   totalCustomers:    0,
@@ -46,13 +40,6 @@ const useStore = create((set) => ({
   setAnalysisState:  (fn) => set(s => ({ analysisState: typeof fn === 'function' ? fn(s.analysisState) : fn })),
 }))
 
-// ============================================================
-// SECTION 2 — CUSTOMER LIST PAGE
-// ============================================================
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Format ISO string to DD-MMM-YY HH:MM:SS in Gulf Standard Time (UTC+4). */
 function formatGST(iso) {
   if (!iso) return '—'
   const d = new Date(new Date(iso).getTime() + 4 * 60 * 60 * 1000)
@@ -65,8 +52,6 @@ function formatGST(iso) {
   return `${DD}-${MON}-${YY} ${HH}:${MM}:${SS}`
 }
 
-// ── normalizeWebsite ──────────────────────────────────────────────────────────
-
 function normalizeWebsite(raw) {
   const trimmed = typeof raw === 'string' ? raw.trim() : ''
   if (!trimmed) return ''
@@ -78,8 +63,6 @@ function normalizeWebsite(raw) {
   }
 }
 
-// ── Dots ──────────────────────────────────────────────────────────────────────
-
 function Dots() {
   return (
     <span className="inline-flex items-center gap-1">
@@ -89,8 +72,6 @@ function Dots() {
     </span>
   )
 }
-
-// ── CategoryStagesFull ────────────────────────────────────────────────────────
 
 function TickIcon({ done }) {
   return (
@@ -122,8 +103,6 @@ function CategoryStagesFull({ categoryStages }) {
     </div>
   )
 }
-
-// ── AnalysisStrip ─────────────────────────────────────────────────────────────
 
 function AnalysisStrip({ state, onClear }) {
   const [dotCount, setDotCount] = useState(1)
@@ -175,8 +154,6 @@ function AnalysisStrip({ state, onClear }) {
     </div>
   )
 }
-
-// ── AnalyzeButton ─────────────────────────────────────────────────────────────
 
 function AnalyzeButton({ c, keysSaved, isAnalyzing, handleAnalyze }) {
   const btnRef               = useRef(null)
@@ -247,8 +224,6 @@ function AnalyzeButton({ c, keysSaved, isAnalyzing, handleAnalyze }) {
   )
 }
 
-// ── CustomerModal (create + edit) ─────────────────────────────────────────────
-
 function CustomerModal({ mode = 'create', customer = null, preSelectedProducts = null, onClose, onSaved }) {
   const isEdit = mode === 'edit'
 
@@ -270,7 +245,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
     [allCustomers]
   )
 
-  // ID validation — create mode only
   useEffect(() => {
     if (isEdit) return
     const q = customerId.trim()
@@ -279,7 +253,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
     setIdError(exists ? 'Customer with the same ID already exists' : null)
   }, [customerId, allCustomers, isEdit])
 
-  // Website validation
   useEffect(() => {
     const raw = customerWebsite.trim()
     if (!raw) { setWebsiteError(null); return }
@@ -305,7 +278,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
     setWebsiteError(exists ? 'Customer with the same website already exists' : null)
   }, [customerWebsite, allCustomers, isEdit, customer])
 
-  // Name validation
   useEffect(() => {
     setNameDismissed(false)
     const q = customerName.trim()
@@ -358,7 +330,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
     >
       <div className="bg-white rounded-lg border border-slate-200 w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
 
-        {/* Header */}
         <div className="flex items-center gap-3 p-4 border-b border-slate-200 shrink-0">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center flex-shrink-0">
             {isEdit ? (
@@ -382,10 +353,8 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
           </div>
         </div>
 
-        {/* Body */}
         <div className="overflow-y-auto p-4 space-y-4 flex-1">
 
-          {/* ID */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">ID</span>
@@ -413,7 +382,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
             )}
           </div>
 
-          {/* Name */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Name</span>
@@ -443,7 +411,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
             />
           </div>
 
-          {/* Website */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Website</span>
@@ -472,7 +439,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
             )}
           </div>
 
-          {/* Products Owned */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-700">Products Owned</span>
@@ -507,7 +473,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
 
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200 shrink-0">
           <button
             onClick={onClose}
@@ -531,8 +496,6 @@ function CustomerModal({ mode = 'create', customer = null, preSelectedProducts =
   , document.body)
 }
 
-// ── CustomerListPage ──────────────────────────────────────────────────────────
-
 function CustomerListPage() {
   const searchQuery       = useStore(s => s.searchQuery)
   const setSearchQuery    = useStore(s => s.setSearchQuery)
@@ -542,7 +505,6 @@ function CustomerListPage() {
 
   const navigate = useNavigate()
 
-  // ── Customer data ─────────────────────────────────────────
   const [enriched, setEnriched] = useState([])
   const [loading,  setLoading]  = useState(true)
 
@@ -568,7 +530,6 @@ function CustomerListPage() {
   const [dateSortCol, setDateSortCol] = useState(null)
   const [dateSortDir, setDateSortDir] = useState('desc')
 
-  // ── API keys ──────────────────────────────────────────────
   const [anthropicKey, setAnthropicKey] = useState('')
   const [tavilyKey,    setTavilyKey]    = useState('')
   const [netlifyKey,   setNetlifyKey]   = useState('')
@@ -599,10 +560,8 @@ function CustomerListPage() {
     setKeysSaved(false)
   }
 
-  // ── Modal ─────────────────────────────────────────────────
   const [modalState, setModalState] = useState(null)
 
-  // ── Analysis ──────────────────────────────────────────────
   const phaseTimers = useRef([])
 
   useEffect(() => () => { phaseTimers.current.forEach(clearTimeout) }, [])
@@ -654,7 +613,6 @@ function CustomerListPage() {
     }
   }, [loadData])
 
-  // ── Search + filter ───────────────────────────────────────
   const fuse = useMemo(
     () => new Fuse(enriched, { keys: ['name'], threshold: 0.35, includeScore: true }),
     [enriched]
@@ -683,7 +641,6 @@ function CustomerListPage() {
     ))
   , [enriched, filtered])
 
-  // ── Table columns ─────────────────────────────────────────
   const columns = useMemo(() => [
     {
       accessorKey: 'id',
@@ -793,10 +750,8 @@ function CustomerListPage() {
   return (
     <div className="max-w-7xl mx-auto px-6 pt-6 pb-6">
 
-      {/* Single row — search · create customer · api keys */}
       <div className="flex items-center gap-2 mb-3">
 
-        {/* Search */}
         <input
           type="text"
           value={searchQuery}
@@ -806,7 +761,6 @@ function CustomerListPage() {
           className="flex-1 h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-700 placeholder-slate-400 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
         />
 
-        {/* Create Customer */}
         <button
           onClick={() => setModalState({ mode: 'create' })}
           className={`${BUTTON_H} px-4 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition-colors shrink-0`}
@@ -814,10 +768,8 @@ function CustomerListPage() {
           Create Customer
         </button>
 
-        {/* Separator */}
         <div className="w-px h-5 bg-slate-200 shrink-0" />
 
-        {/* Anthropic key */}
         <input
           type="text"
           value={anthropicKey}
@@ -827,7 +779,6 @@ function CustomerListPage() {
           className={`${inputBase} w-48 ${keysSaved ? inputSaved : inputNormal}`}
         />
 
-        {/* Tavily key */}
         <input
           type="text"
           value={tavilyKey}
@@ -837,7 +788,6 @@ function CustomerListPage() {
           className={`${inputBase} w-44 ${keysSaved ? inputSaved : inputNormal}`}
         />
 
-        {/* Netlify key */}
         <input
           type="text"
           value={netlifyKey}
@@ -847,7 +797,6 @@ function CustomerListPage() {
           className={`${inputBase} w-44 ${keysSaved ? inputSaved : inputNormal}`}
         />
 
-        {/* Save */}
         <button
           onClick={handleSaveKeys}
           disabled={keysSaved || !anthropicKey.trim() || !tavilyKey.trim() || !netlifyKey.trim()}
@@ -856,7 +805,6 @@ function CustomerListPage() {
           Save
         </button>
 
-        {/* Clear */}
         <button
           onClick={handleClearKeys}
           disabled={!keysSaved}
@@ -867,10 +815,8 @@ function CustomerListPage() {
 
       </div>
 
-      {/* Analysis progress strip */}
       <AnalysisStrip state={analysisState} onClear={() => setAnalysisState(null)} />
 
-      {/* Table or empty state */}
       <div className="mt-6">
       {!hasData ? (
         <div className="border border-slate-200 rounded-lg bg-white px-4 py-12 text-center text-sm text-slate-400">
@@ -917,7 +863,6 @@ function CustomerListPage() {
 
       </div>
 
-      {/* Customer Modal (create / edit) */}
       {modalState && (
         <CustomerModal
           mode={modalState.mode}
@@ -930,10 +875,6 @@ function CustomerListPage() {
     </div>
   )
 }
-
-// ============================================================
-// SECTION 3 — CUSTOMER DETAIL PAGE
-// ============================================================
 
 const ALL_MS_PRODUCTS  = new Set(Object.values(PRODUCTS_BY_CATEGORY).flat())
 const PRODUCT_CATEGORY = Object.fromEntries(Object.entries(PRODUCTS_BY_CATEGORY).flatMap(([cat, prods]) => prods.map(p => [p, cat])))
@@ -958,7 +899,6 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
   return (
     <div className="space-y-6">
 
-      {/* Company Profile — Stage 2 only */}
       {stage === 2 && (
         <div className="bg-white border border-slate-200 rounded">
           <div className="flex items-center gap-3 px-4 py-4">
@@ -970,7 +910,6 @@ function CompanyProfile({ profile, ownedProducts, onUpdateProducts, stage }) {
         </div>
       )}
 
-      {/* Current Tech Stack */}
       <div className="bg-white border border-slate-200 rounded">
         <div className="flex items-center gap-3 px-4 py-4">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0">{stage === 1 ? 'Product Signals' : 'Current Tech Stack'}</span>
@@ -1225,10 +1164,6 @@ function CustomerDetailPage() {
   )
 }
 
-// ============================================================
-// SECTION 4 — API CLIENT
-// ============================================================
-
 async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
   let keys
   try {
@@ -1268,7 +1203,6 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     stage: 1,
   }
 
-  // Trigger background function
   try {
     const triggerRes = await fetch('/fn/analyze-background', {
       method:  'POST',
@@ -1283,7 +1217,6 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
     throw new Error('Something went wrong — network error, check your connection and try again')
   }
 
-  // Poll for result
   const POLL_INTERVAL_MS = 4000
   const MAX_POLLS        = 225
 
@@ -1362,10 +1295,6 @@ async function analyzeCustomer(customer, stage = 1, priorAnalysis = null) {
 
   throw new Error('Something went wrong — analysis timed out after 15 minutes, try again')
 }
-
-// ============================================================
-// SECTION 5 — ROUTER AND EXPORT
-// ============================================================
 
 function NavBar() {
   const totalCustomers = useStore(s => s.totalCustomers)
